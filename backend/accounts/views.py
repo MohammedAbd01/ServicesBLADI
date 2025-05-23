@@ -936,3 +936,91 @@ def resend_verification(request):
         except Utilisateur.DoesNotExist:
             messages.error(request, _('No account found with this email address.'))
     return redirect('accounts:verification_denied')
+
+def password_reset_request(request):
+    """Handle password reset request"""
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        try:
+            user = Utilisateur.objects.get(email=email, is_active=True)
+            # Generate token and UID
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            reset_url = request.build_absolute_uri(
+                reverse('accounts:password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
+            )
+            
+            # Send email
+            context = {
+                'reset_url': reset_url,
+                'user': user
+            }
+            html_message = render_to_string('accounts/email/password_reset_email.html', context)
+            plain_message = f"""
+            Bonjour,
+            
+            Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le lien ci-dessous pour créer un nouveau mot de passe :
+            
+            {reset_url}
+            
+            Ce lien expirera dans 24 heures.
+            
+            Si vous n'avez pas demandé cette réinitialisation, veuillez ignorer cet email.
+            
+            Cordialement,
+            L'équipe Adval Services
+            """
+            
+            send_mail(
+                'Réinitialisation de votre mot de passe - Adval Services',
+                plain_message,
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            
+            return redirect('accounts:password_reset_done')
+        except Utilisateur.DoesNotExist:
+            # Don't reveal that the user doesn't exist
+            return redirect('accounts:password_reset_done')
+    
+    return render(request, 'accounts/password_reset_request.html')
+
+def password_reset_done(request):
+    """Show password reset email sent confirmation"""
+    return render(request, 'accounts/password_reset_done.html')
+
+def password_reset_confirm(request, uidb64, token):
+    """Handle password reset confirmation"""
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = Utilisateur.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, Utilisateur.DoesNotExist):
+        user = None
+    
+    if user is not None and default_token_generator.check_token(user, token):
+        if request.method == 'POST':
+            new_password1 = request.POST.get('new_password1')
+            new_password2 = request.POST.get('new_password2')
+            
+            if new_password1 != new_password2:
+                messages.error(request, 'Les mots de passe ne correspondent pas.')
+                return render(request, 'accounts/password_reset_confirm.html')
+            
+            if len(new_password1) < 8:
+                messages.error(request, 'Le mot de passe doit contenir au moins 8 caractères.')
+                return render(request, 'accounts/password_reset_confirm.html')
+            
+            user.set_password(new_password1)
+            user.save()
+            messages.success(request, 'Votre mot de passe a été réinitialisé avec succès. Vous pouvez maintenant vous connecter.')
+            return redirect('accounts:login')
+        
+        return render(request, 'accounts/password_reset_confirm.html', {'validlink': True})
+    
+    return render(request, 'accounts/password_reset_confirm.html', {'validlink': False})
+
+def password_reset_complete(request):
+    """Show password reset complete confirmation"""
+    return render(request, 'accounts/password_reset_complete.html')

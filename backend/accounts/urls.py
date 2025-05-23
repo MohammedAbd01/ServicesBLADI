@@ -12,10 +12,10 @@ urlpatterns = [
     path('register/expert/', views.register_expert_view, name='register_expert'),
     
     # Password management
-    path('password_reset/', auth_views.PasswordResetView.as_view(), name='password_reset'),
-    path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),
-    path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
-    path('reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
+    path('password-reset/', views.password_reset_request, name='password_reset_request'),
+    path('password-reset/done/', views.password_reset_done, name='password_reset_done'),
+    path('password-reset/<uidb64>/<token>/', views.password_reset_confirm, name='password_reset_confirm'),
+    path('password-reset/complete/', views.password_reset_complete, name='password_reset_complete'),
     
     # Dashboards
     path('dashboard/', views.dashboard_redirect_view, name='dashboard_redirect'),
