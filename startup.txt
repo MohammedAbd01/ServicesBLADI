@@ -1,13 +1,14 @@
 # Azure startup commands for Django
+# This script runs after Oryx build completion
 # Set working directory to wwwroot (where backend files are deployed)
 cd /home/site/wwwroot
 
-# Set up Python path
-export PYTHON_PATH="/opt/python/3.10.17/bin/python"
+# Activate virtual environment created by Oryx
+source /home/site/wwwroot/antenv/bin/activate
 
 # Check if MySQL is ready before proceeding
 echo "Waiting for MySQL connection..."
-$PYTHON_PATH -c "import time; \
+python -c "import time; \
 try: \
     import MySQLdb; \
 except ImportError: \
@@ -18,6 +19,7 @@ count=0; \
 while count < 10: \
     try: \
         MySQLdb.connect(host='servicesbladi.mysql.database.azure.com', user='servicesbladiadmin', passwd='Aa123456a', db='servicesbladi', ssl=False); \
+        print('MySQL connection successful!'); \
         break; \
     except Exception as e: \
         print(f'MySQL connection attempt {count+1}/10 failed: {e}'); \
@@ -26,10 +28,10 @@ while count < 10: \
 " || echo "MySQL connection check failed, but continuing anyway"
 
 # Run migrations with error handling
-$PYTHON_PATH manage.py migrate --noinput || echo "Migration failed but continuing"
+python manage.py migrate --noinput || echo "Migration failed but continuing"
 
 # Create cache table with error handling
-$PYTHON_PATH manage.py createcachetable --noinput || echo "Cache table creation failed but continuing"
+python manage.py createcachetable --noinput || echo "Cache table creation failed but continuing"
 
-# Start Gunicorn (using the virtual environment's gunicorn)
-/home/site/wwwroot/antenv/bin/gunicorn servicesbladi.wsgi:application --config gunicorn.conf.py
+# Start Gunicorn using the activated virtual environment
+exec gunicorn servicesbladi.wsgi:application --config gunicorn.conf.py
