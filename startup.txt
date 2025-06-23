@@ -75,13 +75,13 @@ count = 0
 while count < 10:
     try:
         if use_ssl:
-            # Use SSL with minimal validation for Azure MySQL compatibility
+            # Force SSL connection for Azure MySQL
             MySQLdb.connect(
                 host=db_host,
                 user=db_user,
                 passwd=db_password,
                 db=db_name,
-                ssl={'check_hostname': False}
+                ssl=True
             )
         else:
             MySQLdb.connect(
@@ -103,7 +103,7 @@ while count < 10:
 python manage.py migrate --noinput || echo "Migration failed but continuing"
 
 # Create cache table with error handling
-python manage.py createcachetable --noinput || echo "Cache table creation failed but continuing"
+python manage.py createcachetable || echo "Cache table creation failed but continuing"
 
 # Start Gunicorn using the activated virtual environment
 exec gunicorn servicesbladi.wsgi:application --bind 0.0.0.0:8000 --workers 2

@@ -113,18 +113,18 @@ if IS_AZURE:
     ca_cert_paths = [
         '/home/site/wwwroot/BaltimoreCyberTrustRoot.crt.pem',
         os.path.join(BASE_DIR, 'BaltimoreCyberTrustRoot.crt.pem'),
-        'BaltimoreCyberTrustRoot.crt.pem'
-    ]
+        'BaltimoreCyberTrustRoot.crt.pem'    ]
     
     ca_cert_path = None
     for path in ca_cert_paths:
         if os.path.exists(path):
             ca_cert_path = path
-            break    
+            break
+      # Configure SSL options for Azure MySQL
     ssl_options = {}
     if os.environ.get('AZURE_MYSQL_SSL', 'true').lower() == 'true':
-        # Use SSL but don't verify certificates for Azure MySQL compatibility
-        ssl_options = {'check_hostname': False}
+        # Force SSL connection for Azure MySQL
+        ssl_options = True  # This forces SSL without certificate validation
     
     DATABASES = {
         'default': {
