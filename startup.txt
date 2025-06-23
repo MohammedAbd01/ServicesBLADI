@@ -23,6 +23,7 @@ cd $APP_PATH
 # Check if MySQL is ready before proceeding
 echo "Waiting for MySQL connection..."
 python -c "
+import os
 import time
 try:
     import MySQLdb
@@ -31,14 +32,22 @@ except ImportError:
     pymysql.install_as_MySQLdb()
     import MySQLdb
 
+# Get database settings from environment variables
+db_host = os.environ.get('AZURE_MYSQL_HOST', 'servicesbladi.mysql.database.azure.com')
+db_user = os.environ.get('AZURE_MYSQL_USER', 'servicesbladiadmin')
+db_password = os.environ.get('AZURE_MYSQL_PASSWORD', 'Aa123456a')
+db_name = os.environ.get('AZURE_MYSQL_NAME', 'servicesbladi')
+
+print(f'Connecting to MySQL at {db_host} with user {db_user}')
+
 count = 0
 while count < 10:
     try:
         MySQLdb.connect(
-            host='servicesbladi.mysql.database.azure.com',
-            user='servicesbladiadmin',
-            passwd='Aa123456a',
-            db='servicesbladi',
+            host=db_host,
+            user=db_user,
+            passwd=db_password,
+            db=db_name,
             ssl=False
         )
         print('MySQL connection successful!')
