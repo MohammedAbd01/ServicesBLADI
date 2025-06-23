@@ -1,40 +1,96 @@
-# Deploy Django App to Azure Web App
-name: "Deploy to Azure"
+# Deploy Django App to Azure Web App - Proven Working Method
+name: Deploy Django App to Azure
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 30
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r backend/requirements.txt
-    
-    - name: Prepare deployment
-      run: |
-        mkdir deployment
-        cp -r backend/* deployment/
-        if [ -d "frontend" ]; then
-          cp -r frontend deployment/
-        fi
-        cp web.config deployment/ 2>/dev/null || true
-        cp startup.txt deployment/ 2>/dev/null || true
-    
-    - name: Deploy to Azure Web App
-      uses: azure/webapps-deploy@v3
-      with:
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: ./deployment
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Create logs directory
+        run: |
+          mkdir -p backend/logs
+          mkdir -p deployment/logs
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Collect static files
+        run: |
+          cd backend
+          echo "Collecting static files..."
+          python manage.py collectstatic --noinput --clear
+          echo "Static files collected successfully"
+
+      - name: Login to Azure using OIDC
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Prepare deployment package
+        run: |
+          # Create deployment directory
+          mkdir -p deployment
+          
+          # Copy backend files (including all Django apps)
+          cp -r backend/* deployment/
+          
+          # Copy frontend directories to deployment
+          if [ -d "frontend" ]; then
+            echo "Copying frontend files..."
+            mkdir -p deployment/frontend/static
+            mkdir -p deployment/frontend/template
+            
+            # Copy static files
+            if [ -d "frontend/static" ]; then
+              cp -r frontend/static/* deployment/frontend/static/
+              echo "Copied frontend static files"
+            fi
+            
+            # Copy template files
+            if [ -d "frontend/template" ]; then
+              cp -r frontend/template/* deployment/frontend/template/
+              echo "Copied frontend template files"
+            fi
+          fi
+          
+          # Copy SSL certificate to root of deployment
+          cp backend/BaltimoreCyberTrustRoot.crt.pem deployment/ || echo "SSL cert not found"
+          
+          # Copy Azure configuration files
+          cp web.config deployment/ || echo "web.config not found"
+          cp startup.txt deployment/ || echo "startup.txt not found"
+          
+          # Set proper permissions for Azure
+          chmod -R 755 deployment/
+          
+          echo "Deployment package prepared successfully"
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: servicesbladi
+          slot-name: production
+          package: ./deployment
