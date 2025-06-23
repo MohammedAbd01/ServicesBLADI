@@ -1,30 +1,52 @@
 # Azure startup commands for Django
 # This script runs after Oryx build completion
-# Set working directory to wwwroot (where backend files are deployed)
-cd /home/site/wwwroot
+
+# Find the extracted app path (Oryx extracts to a temp directory)
+APP_PATH=$(find /tmp -maxdepth 1 -name "8ddb*" -type d 2>/dev/null | head -1)
+if [ -z "$APP_PATH" ]; then
+    APP_PATH="/home/site/wwwroot"
+fi
+
+echo "Using app path: $APP_PATH"
 
 # Activate virtual environment created by Oryx
-source /home/site/wwwroot/antenv/bin/activate
+if [ -f "$APP_PATH/antenv/bin/activate" ]; then
+    . $APP_PATH/antenv/bin/activate
+    echo "Virtual environment activated"
+else
+    echo "Virtual environment not found, using system Python"
+fi
+
+# Set working directory to the app path
+cd $APP_PATH
 
 # Check if MySQL is ready before proceeding
 echo "Waiting for MySQL connection..."
-python -c "import time; \
-try: \
-    import MySQLdb; \
-except ImportError: \
-    import pymysql; \
-    pymysql.install_as_MySQLdb(); \
-    import MySQLdb; \
-count=0; \
-while count < 10: \
-    try: \
-        MySQLdb.connect(host='servicesbladi.mysql.database.azure.com', user='servicesbladiadmin', passwd='Aa123456a', db='servicesbladi', ssl=False); \
-        print('MySQL connection successful!'); \
-        break; \
-    except Exception as e: \
-        print(f'MySQL connection attempt {count+1}/10 failed: {e}'); \
-        count += 1; \
-        time.sleep(5); \
+python -c "
+import time
+try:
+    import MySQLdb
+except ImportError:
+    import pymysql
+    pymysql.install_as_MySQLdb()
+    import MySQLdb
+
+count = 0
+while count < 10:
+    try:
+        MySQLdb.connect(
+            host='servicesbladi.mysql.database.azure.com',
+            user='servicesbladiadmin',
+            passwd='Aa123456a',
+            db='servicesbladi',
+            ssl=False
+        )
+        print('MySQL connection successful!')
+        break
+    except Exception as e:
+        print(f'MySQL connection attempt {count+1}/10 failed: {e}')
+        count += 1
+        time.sleep(5)
 " || echo "MySQL connection check failed, but continuing anyway"
 
 # Run migrations with error handling
@@ -34,4 +56,4 @@ python manage.py migrate --noinput || echo "Migration failed but continuing"
 python manage.py createcachetable --noinput || echo "Cache table creation failed but continuing"
 
 # Start Gunicorn using the activated virtual environment
-exec gunicorn servicesbladi.wsgi:application --config gunicorn.conf.py
+exec gunicorn servicesbladi.wsgi:application --bind 0.0.0.0:8000 --workers 2
