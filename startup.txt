@@ -37,19 +37,29 @@ db_host = os.environ.get('AZURE_MYSQL_HOST', 'servicesbladi.mysql.database.azure
 db_user = os.environ.get('AZURE_MYSQL_USER', 'servicesbladiadmin')
 db_password = os.environ.get('AZURE_MYSQL_PASSWORD', 'Aa123456a')
 db_name = os.environ.get('AZURE_MYSQL_NAME', 'servicesbladi')
+use_ssl = os.environ.get('AZURE_MYSQL_SSL', 'true').lower() == 'true'
 
-print(f'Connecting to MySQL at {db_host} with user {db_user}')
+print(f'Connecting to MySQL at {db_host} with user {db_user}, SSL: {use_ssl}')
 
 count = 0
 while count < 10:
     try:
-        MySQLdb.connect(
-            host=db_host,
-            user=db_user,
-            passwd=db_password,
-            db=db_name,
-            ssl=False
-        )
+        if use_ssl:
+            MySQLdb.connect(
+                host=db_host,
+                user=db_user,
+                passwd=db_password,
+                db=db_name,
+                ssl={'ca': '/home/site/wwwroot/BaltimoreCyberTrustRoot.crt.pem'}
+            )
+        else:
+            MySQLdb.connect(
+                host=db_host,
+                user=db_user,
+                passwd=db_password,
+                db=db_name,
+                ssl=False
+            )
         print('MySQL connection successful!')
         break
     except Exception as e:
