@@ -1,0 +1,52 @@
+# Deploy Django App to Azure Web App
+name: Deploy to Azure Web App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r backend/requirements.txt
+
+    - name: Prepare deployment package
+      run: |
+        # Create deployment directory
+        mkdir -p deployment
+        
+        # Copy all backend files
+        cp -r backend/* deployment/
+        
+        # Copy frontend files if they exist
+        if [ -d "frontend" ]; then
+          mkdir -p deployment/frontend
+          cp -r frontend/* deployment/frontend/
+        fi
+        
+        # Copy configuration files
+        cp web.config deployment/ 2>/dev/null || echo "web.config not found"
+        cp startup.txt deployment/ 2>/dev/null || echo "startup.txt not found"
+        
+        echo "Deployment package prepared successfully"
+
+    - name: Deploy to Azure Web App
+      uses: azure/webapps-deploy@v3
+      with:
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: ./deployment
