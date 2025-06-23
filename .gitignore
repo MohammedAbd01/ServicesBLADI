@@ -174,3 +174,15 @@ node_modules/
 .env
 .secret
 secrets.json
+
+# Deployment temporary files
+temp-deploy/
+deployment-package/
+deploy.zip
+azure_publish_profile.xml
+deployment/
+
+# Large deployment files
+*.zip
+test-deploy.zip
+azure-deploy.zip

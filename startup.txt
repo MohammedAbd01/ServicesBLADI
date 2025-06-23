@@ -19,6 +19,9 @@ while count < 10: \
 # Run migrations with error handling
 python manage.py migrate --noinput || echo "Migration failed but continuing"
 
+# Collect static files with error handling (skip manifest processing)
+python manage.py collectstatic --noinput --no-post-process || echo "Static files collection failed but continuing"
+
 # Create cache table with error handling
 python manage.py createcachetable --noinput || echo "Cache table creation failed but continuing"
 

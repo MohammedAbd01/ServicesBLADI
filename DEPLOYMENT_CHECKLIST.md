@@ -1,23 +1,23 @@
 # 📋 Azure Deployment Checklist
 
 ## Pre-Deployment Tasks
-- [x] **Settings Configuration** ✅ COMPLETED
-  - [x] Read current `backend/servicesbladi/settings.py`
-  - [x] Read `backend/azure_config.py`
-  - [x] Merge Azure configurations into main settings.py
-  - [x] Add Azure environment detection
-  - [x] Configure Azure database with SSL
-  - [x] Set up static files for Azure (WhiteNoise)
-  - [x] Configure security settings for Azure
-  - [x] Add logging configuration for Azure
-  - [x] Update ALLOWED_HOSTS for Azure domain
+- [ ] **Settings Configuration**
+  - [ ] Read current `backend/servicesbladi/settings.py`
+  - [ ] Read `backend/azure_config.py`
+  - [ ] Merge Azure configurations into main settings.py
+  - [ ] Add Azure environment detection
+  - [ ] Configure Azure database with SSL
+  - [ ] Set up static files for Azure (WhiteNoise)
+  - [ ] Configure security settings for Azure
+  - [ ] Add logging configuration for Azure
+  - [ ] Update ALLOWED_HOSTS for Azure domain
 
-- [x] **Requirements.txt Validation** ✅ COMPLETED
-  - [x] Check current requirements.txt
-  - [x] Add gunicorn>=20.1.0
-  - [x] Add whitenoise>=6.5.0
-  - [x] Add mysqlclient>=2.2.7
-  - [x] Add django-environ
+- [ ] **Requirements.txt Validation**
+  - [ ] Check current requirements.txt
+  - [ ] Add gunicorn>=20.1.0
+  - [ ] Add whitenoise>=6.5.0
+  - [ ] Add mysqlclient>=2.2.7
+  - [ ] Add psycopg2-binary
   - [ ] Verify all app dependencies
 
 - [ ] **Azure Configuration Files**
