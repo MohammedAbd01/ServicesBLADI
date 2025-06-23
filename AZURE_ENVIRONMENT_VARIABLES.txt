@@ -1,0 +1,26 @@
+# AZURE APP SERVICE ENVIRONMENT VARIABLES
+# Copy these to Azure Portal → Configuration → Application Settings
+
+# Django Configuration
+DJANGO_SETTINGS_MODULE=servicesbladi.settings
+DJANGO_ENV=production
+
+# Security (Generate a new secret key)
+SECRET_KEY=django-insecure-GENERATE-NEW-SECRET-KEY-HERE
+
+# Database Configuration (Update with your actual Azure MySQL details)
+AZURE_MYSQL_HOST=your-mysql-server.mysql.database.azure.com
+AZURE_MYSQL_NAME=servicesbladi
+AZURE_MYSQL_USER=your-mysql-username
+AZURE_MYSQL_PASSWORD=your-mysql-password
+AZURE_MYSQL_PORT=3306
+
+# Azure Build Settings
+PYTHONPATH=/home/site/wwwroot
+WEBSITE_HTTPLOGGING_RETENTION_DAYS=3
+SCM_DO_BUILD_DURING_DEPLOYMENT=true
+ENABLE_ORYX_BUILD=true
+PRE_BUILD_SCRIPT_PATH=startup.txt
+
+# Optional: Debug settings (remove in production)
+# DEBUG=False
