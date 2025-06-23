@@ -92,5 +92,6 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: servicesbladi
+          resource-group-name: Adval
           slot-name: production
           package: ./deployment
