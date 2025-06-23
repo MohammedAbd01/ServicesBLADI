@@ -6,6 +6,18 @@
  */
 
 (function() {
+    // Check if cache control should be disabled for this page
+    if (window.DISABLE_CACHE_CONTROL || window.location.pathname.includes('/register')) {
+        console.log('Cache control disabled for this page');
+        return;
+    }
+    
+    // Skip cache control on form submissions
+    if (document.referrer && document.referrer.includes('/register') && window.location.search.includes('t=')) {
+        console.log('Skipping cache control after form submission');
+        return;
+    }
+    
     // Fonction pour obtenir un paramètre de l'URL
     function getUrlParam(name) {
         const params = new URLSearchParams(window.location.search);

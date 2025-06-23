@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'general/base.html' %}
 {% load static %}
 
 {% block title %}Ressources - ServicesBLADI{% endblock %}
@@ -6,6 +6,36 @@
 {% block meta_keywords %}ressources, documents, guides, ServicesBLADI{% endblock %}
 
 {% block content %}
+<style>
+  .resource-card .card-footer {
+    display: flex;
+    justify-content: center; /* Center the button within the footer */
+    align-items: center;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+    min-height: 70px; /* Ensure footer has some min height for consistency */
+  }
+
+  .resource-card .card-footer .btn-resource-action {
+    white-space: normal !important; /* Allow text to wrap, override Bootstrap if necessary */
+    word-wrap: break-word; /* For older browsers */
+    overflow-wrap: break-word; /* Standard property */
+    
+    display: inline-flex; /* Align icon and text nicely */
+    align-items: center;   /* Vertically align icon and text */
+    justify-content: center; /* Center content (icon and text) within the button */
+    text-align: center;    /* Ensure text itself is centered if it wraps */
+    
+    max-width: 100%; /* Button can't be wider than footer's content area */
+    padding: 0.375rem 0.75rem; /* Standard Bootstrap .btn padding */
+    line-height: 1.5; /* Improve readability for wrapped text */
+  }
+
+  .resource-card .card-footer .btn-resource-action i {
+    flex-shrink: 0; /* Prevent icon from shrinking */
+    margin-right: 0.35rem; /* Spacing between icon and text, slightly more than me-1 */
+  }
+</style>
 <div class="container my-5">
   <h1 class="mb-4">Ressources</h1>
   
@@ -69,7 +99,7 @@
         <div class="row">
           {% for resource in category.list %}
             <div class="col-md-4 mb-4">
-              <div class="card h-100 shadow-sm">
+              <div class="card h-100 shadow-sm resource-card">
                 <div class="card-body">
                   <h5 class="card-title">{{ resource.title }}</h5>
                   <p class="card-text text-muted">{{ resource.description|truncatechars:120 }}</p>
@@ -84,8 +114,8 @@
                   </div>
                 </div>
                 <div class="card-footer bg-white border-top-0">
-                  <a href="{% url 'resources:resource_detail' resource.id %}" class="btn btn-outline-primary w-100">
-                    <i class="bi bi-file-earmark-text me-1"></i> Voir les détails
+                  <a href="{% url 'resources:resource_detail' resource.id %}" class="btn btn-outline-primary btn-resource-action">
+                    <i class="bi bi-file-earmark-text"></i> Voir les détails
                   </a>
                 </div>
               </div>
@@ -96,4 +126,4 @@
     {% endfor %}
   {% endif %}
 </div>
-{% endblock %} 
+{% endblock %}

@@ -1,9 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, authenticate, update_session_auth_hash
+from django.contrib.auth import login, authenticate, update_session_auth_hash, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import AuthenticationForm
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.conf import settings
@@ -19,6 +20,7 @@ from django.urls import reverse
 from .models import Utilisateur, Client, Expert, Address, Notification
 from .forms import UserEditForm, CustomPasswordChangeForm  # Added form imports
 from custom_requests.models import Document, Message
+from services.email_notifications import EmailNotificationService
 
 # Authentication views
 def custom_login_view(request):
@@ -79,32 +81,31 @@ def custom_login_view(request):
                     'success': False,
                     'message': str(e)
                 }, status=400)
-        
-        # Handle form submission
+          # Handle form submission
         email = request.POST.get('email')
         password = request.POST.get('password')
         
         if not email or not password:
             messages.error(request, _('Please provide both email and password'))
-            return render(request, 'login.html')
-        
-        # Try authentication
+            return render(request, 'general/login.html')
+          # Try authentication
         user = authenticate(request, email=email, password=password)
         
         if user is not None:
             if not user.is_active:
                 messages.warning(request, _('Please verify your email before logging in.'))
                 return redirect('accounts:verification_denied')
-                
+            
             login(request, user)
-            next_url = request.POST.get('next')
+            # Check for next URL in POST data first, then GET parameters
+            next_url = request.POST.get('next') or request.GET.get('next')
             if next_url:
                 return redirect(next_url)
             return redirect('accounts:dashboard_redirect')
         else:
             messages.error(request, _('Invalid email or password'))
     
-    return render(request, 'login.html')
+    return render(request, 'general/login.html')
 
 # Admin authentication views
 def admin_login_view(request):
@@ -175,8 +176,7 @@ def create_admin_user(request):
                 if Utilisateur.objects.filter(email=email).exists():
                     messages.error(request, _("Un utilisateur avec cet email existe déjà."))
                     return redirect('admin_users')
-                
-                # Create the admin user
+                  # Create the admin user
                 user = Utilisateur.objects.create_user(
                     email=email,
                     name=name,
@@ -185,6 +185,13 @@ def create_admin_user(request):
                     account_type='admin',
                     is_verified=True
                 )
+                
+                # Send welcome email notification
+                try:
+                    EmailNotificationService.send_welcome_email(user, password)
+                except Exception as email_error:
+                    print(f"Failed to send welcome email: {email_error}")
+                    # Continue without failing the request
                 
                 messages.success(request, _("Administrateur créé avec succès."))
                 return redirect('admin_users')
@@ -201,8 +208,7 @@ def register_view(request):
         # Set account type to client
         request.POST = request.POST.copy()
         request.POST['user_type'] = 'client'
-        
-        # Extract user data from form
+          # Extract user data from form
         email = request.POST.get('email', '')
         password = request.POST.get('password', '')
         password_confirm = request.POST.get('password_confirm', '')
@@ -210,20 +216,24 @@ def register_view(request):
         first_name = request.POST.get('first_name', '')
         phone = request.POST.get('phone', '')
         
+        print(f"EXTRACTED DATA: email={email}, password={'***' if password else 'EMPTY'}, name={name}, first_name={first_name}, phone={phone}")
+        
         # Validate data
         if not all([email, password, name, first_name, phone]):
+            print(f"VALIDATION FAILED: missing fields - email={bool(email)}, password={bool(password)}, name={bool(name)}, first_name={bool(first_name)}, phone={bool(phone)}")
             messages.error(request, _('Veuillez remplir tous les champs obligatoires'))
-            return render(request, 'register.html')
-        
-        # Check if passwords match
+            return render(request, 'general/register.html')
+          # Check if passwords match
         if password != password_confirm:
+            print(f"PASSWORD MISMATCH: password length={len(password)}, confirm length={len(password_confirm)}")
             messages.error(request, _('Les mots de passe ne correspondent pas'))
-            return render(request, 'register.html')
-        
-        # Check if user already exists
+            return render(request, 'general/register.html')          # Check if user already exists
         if Utilisateur.objects.filter(email=email).exists():
+            print(f"USER ALREADY EXISTS: {email}")
             messages.error(request, _('Cette adresse email est déjà enregistrée'))
-            return render(request, 'register.html')
+            return render(request, 'general/register.html')
+            
+        print("ALL VALIDATIONS PASSED - proceeding to user creation")
         
         try:
             # Create user with is_active=False
@@ -237,10 +247,8 @@ def register_view(request):
                 preferred_languages=request.POST.get('preferred_language', 'fr'),
                 is_active=False  # Set user as inactive until email verification
             )
-            
             # Store email in session for email_sent page
             request.session['registered_email'] = email
-            
             # Create client profile
             Client.objects.create(
                 user=user,
@@ -248,7 +256,6 @@ def register_view(request):
                 origin_country='Maroc',
                 last_visit=request.POST.get('last_visit', None)
             )
-            
             # Create address if provided
             country = request.POST.get('residence_country', '')
             if country:
@@ -256,9 +263,7 @@ def register_view(request):
                     user=user,
                     country=country,
                     address_type='HOME',
-                )
-            
-            # Send verification email
+                )            # Send verification email
             try:
                 send_verification_email(user, request)
                 messages.success(request, _('Inscription réussie ! Un email de vérification a été envoyé à votre adresse email.'))
@@ -268,17 +273,17 @@ def register_view(request):
                 user.delete()
                 messages.error(request, _('Erreur lors de l\'envoi de l\'email de vérification. Veuillez réessayer.'))
                 print(f"Email sending error: {str(e)}")  # For debugging
-                return render(request, 'register.html')
-            
+                return render(request, 'general/register.html')
         except Exception as e:
             messages.error(request, str(e))
-            return render(request, 'register.html')
+            print(f"REGISTER ERROR: {str(e)}")
+            return render(request, 'general/register.html')
     
     # GET request - show registration form
     context = {
         'countries': settings.COUNTRIES,
     }
-    return render(request, 'register.html', context)
+    return render(request, 'general/register.html', context)
 
 
 def register_expert_view(request):
@@ -297,8 +302,7 @@ def register_expert_view(request):
         phone = request.POST.get('phone', '')
         expertise = request.POST.get('expertise', '')
         experience = request.POST.get('experience', 0)
-        
-        # Check if this is an AJAX request
+          # Check if this is an AJAX request
         is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         
         # Validate data
@@ -307,7 +311,7 @@ def register_expert_view(request):
             if is_ajax:
                 return JsonResponse({'success': False, 'message': error_msg}, status=400)
             messages.error(request, error_msg)
-            return render(request, 'register_expert.html', {'countries': settings.COUNTRIES})
+            return render(request, 'general/register_expert.html', {'countries': settings.COUNTRIES})
         
         # Check if passwords match
         if password != password_confirm:
@@ -315,7 +319,7 @@ def register_expert_view(request):
             if is_ajax:
                 return JsonResponse({'success': False, 'message': error_msg}, status=400)
             messages.error(request, error_msg)
-            return render(request, 'register_expert.html', {'countries': settings.COUNTRIES})
+            return render(request, 'general/register_expert.html', {'countries': settings.COUNTRIES})
         
         # Check if user already exists
         if Utilisateur.objects.filter(email=email).exists():
@@ -323,7 +327,7 @@ def register_expert_view(request):
             if is_ajax:
                 return JsonResponse({'success': False, 'message': error_msg}, status=400)
             messages.error(request, error_msg)
-            return render(request, 'register_expert.html', {'countries': settings.COUNTRIES})
+            return render(request, 'general/register_expert.html', {'countries': settings.COUNTRIES})
         
         try:
             # Create user with is_active=False
@@ -372,14 +376,14 @@ def register_expert_view(request):
                 if is_ajax:
                     return JsonResponse({'success': False, 'message': error_msg}, status=400)
                 messages.error(request, error_msg)
-                return render(request, 'register_expert.html', {'countries': settings.COUNTRIES})
+                return render(request, 'general/register_expert.html', {'countries': settings.COUNTRIES})
             
         except Exception as e:
             error_msg = str(e)
             if is_ajax:
                 return JsonResponse({'success': False, 'message': error_msg}, status=400)
             messages.error(request, error_msg)
-            return render(request, 'register_expert.html', {'countries': settings.COUNTRIES})
+            return render(request, 'general/register_expert.html', {'countries': settings.COUNTRIES})
     
     # GET request - show registration form
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -388,7 +392,7 @@ def register_expert_view(request):
     context = {
         'countries': settings.COUNTRIES,
     }
-    return render(request, 'register_expert.html', context)
+    return render(request, 'general/register_expert.html', context)
 
 # Dashboard views
 @login_required
@@ -431,18 +435,22 @@ def profile_view(request):
             profile = Client.objects.get(user=user)
         except Client.DoesNotExist:
             profile = None
+        base_template = 'client/base.html'
     elif user.account_type == 'EXPERT':
         try:
             profile = Expert.objects.get(user=user)
         except Expert.DoesNotExist:
             profile = None
+        base_template = 'expert/base.html'
     else:
         profile = None
+        base_template = 'admin/base.html'
     
     context = {
         'user': user,
         'address': address,
         'profile': profile,
+        'base_template': base_template,  # Pass the base template to the context
     }
     
     return render(request, 'accounts/profile.html', context)
@@ -707,8 +715,7 @@ def admin_create_user_view(request):
                 spoken_languages=request.POST.get('languages', 'fr') or 'fr',
                 hourly_rate=0  # Default value
             )
-        
-        # Create address if provided
+          # Create address if provided
         street = request.POST.get('street', '')
         if street:
             Address.objects.create(
@@ -719,6 +726,13 @@ def admin_create_user_view(request):
                 country=request.POST.get('country', ''),
                 address_type='HOME',
             )
+        
+        # Send welcome email notification
+        try:
+            EmailNotificationService.send_welcome_email(user, password)
+        except Exception as email_error:
+            print(f"Failed to send welcome email: {email_error}")
+            # Continue without failing the request
         
         return redirect('accounts:admin_users')
     
@@ -857,34 +871,9 @@ def send_verification_email(user, request):
         reverse('accounts:verify_email', kwargs={'uidb64': uid, 'token': token})
     )
     
-    context = {
-        'verification_url': verification_url,
-        'user': user
-    }
-    
-    html_message = render_to_string('accounts/email/verification_email.html', context)
-    plain_message = f"""
-    Welcome to Adval Services Marketplace!
-    
-    Please verify your email address by clicking the link below:
-    {verification_url}
-    
-    If you did not create an account with Adval Services Marketplace, please ignore this email.
-    The verification link will expire in 24 hours.
-    
-    Best regards,
-    The Adval Services Team
-    """
-    
     try:
-        send_mail(
-            'Verify your email to access your account',
-            plain_message,
-            settings.DEFAULT_FROM_EMAIL,
-            [user.email],
-            html_message=html_message,
-            fail_silently=False,
-        )
+        # Use the new email notification service
+        EmailNotificationService.send_verification_email(user, verification_url)
         print(f"Verification email sent to {user.email}")  # For debugging
     except Exception as e:
         print(f"Error sending verification email: {str(e)}")  # For debugging
@@ -1024,3 +1013,51 @@ def password_reset_confirm(request, uidb64, token):
 def password_reset_complete(request):
     """Show password reset complete confirmation"""
     return render(request, 'accounts/password_reset_complete.html')
+
+@login_required
+def admin_edit_profile_view(request):
+    """View for admin profile editing"""
+    # Check if user is an admin
+    if request.user.account_type != 'ADMIN':
+        raise PermissionDenied
+    
+    user = request.user
+    user_form = UserEditForm(instance=user)
+    
+    if request.method == 'POST':
+        user_form = UserEditForm(request.POST, request.FILES, instance=user)
+        if user_form.is_valid():
+            # Sauvegarder le formulaire
+            user = user_form.save()
+            
+            # Forcer la mise à jour de la session
+            request.session.modified = True
+            
+            # Mettre à jour l'utilisateur dans la session
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, user)
+            
+            messages.success(request, _('Votre profil a été mis à jour avec succès.'))
+            
+            # Rediriger vers la page de profil avec un paramètre de cache-busting
+            import time
+            import random
+            cache_buster = f"{int(time.time())}_{random.randint(1000, 9999)}"
+            return redirect(f"{reverse('admin_profile')}?v={cache_buster}")
+        else:
+            messages.error(request, _('Veuillez corriger les erreurs ci-dessous.'))
+    
+    context = {
+        'user_form': user_form,
+        'user': user,
+    }
+    return render(request, 'admin/edit_profile.html', context)
+
+@require_http_methods(["GET", "POST"])
+def custom_logout_view(request):
+    logout(request)
+    return redirect('accounts:login')
+
+def register_test_view(request):
+    """Test registration view"""
+    return render(request, 'general/register_test.html')

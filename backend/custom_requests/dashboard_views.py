@@ -323,7 +323,7 @@ def admin_dashboard_view(request):
         
         # Get service statistics
         total_requests = ServiceRequest.objects.count()
-        pending_requests = ServiceRequest.objects.filter(status='pending').count()
+        pending_requests = ServiceRequest.objects.filter(status__in=['new', 'pending_info']).count()
         completed_requests = ServiceRequest.objects.filter(status='completed').count()
         
         # Get appointment statistics

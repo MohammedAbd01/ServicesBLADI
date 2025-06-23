@@ -1,6 +1,8 @@
 from django.urls import path, include
 from . import views
 from . import message_views
+from . import client_views
+from . import admin_views
 
 app_name = 'custom_requests'
 
@@ -17,13 +19,12 @@ urlpatterns = [
     path('appointments/', views.client_appointments_view, name='client_appointments'),
     path('appointments/create/', views.create_appointment_view, name='create_appointment'),
     path('appointments/detail/<int:appointment_id>/', views.appointment_detail_view, name='appointment_detail'),
-    path('appointments/cancel/<int:appointment_id>/', views.cancel_appointment_view, name='cancel_appointment'),
-    
-    # Expert views
+    path('appointments/cancel/<int:appointment_id>/', views.cancel_appointment_view, name='cancel_appointment'),    # Expert views
     path('expert/', views.expert_requests_view, name='expert_requests'),
+    path('expert/demande/<int:request_id>/', views.request_detail_view, name='expert_request_detail'), # Updated name
     path('expert/appointments/', views.expert_appointments_view, name='expert_appointments'),
     path('expert/upload_document/', views.upload_document_view, name='expert_upload_document'),
-    path('expert/add_appointment/', views.create_appointment_view, name='expert_add_appointment'),
+    path('expert/add_appointment/', views.expert_create_appointment_view, name='expert_add_appointment'),
     path('expert/add_resource/', views.upload_document_view, name='expert_add_resource'),
     
     # Document views
@@ -42,16 +43,24 @@ urlpatterns = [
     # Notification views
     path('notifications/', views.notifications_view, name='notifications'),
     path('notifications/read/<int:notification_id>/', views.mark_notification_read_view, name='mark_notification_read'),
-    
+    path('notifications/mark-all-read/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
     # API endpoints
     path('api/client/requests/', views.api_client_requests, name='api_client_requests'),
     path('api/request/<int:request_id>/', views.api_request_detail, name='api_request_detail'),
     path('api/appointments/', views.api_client_appointments, name='api_appointments'),
-    path('api/expert/requests/', views.api_expert_requests, name='api_expert_requests'),
-    path('api/documents/upload/', views.api_upload_document, name='api_upload_document'),
+    path('api/expert/requests/', views.api_expert_requests, name='api_expert_requests'),    path('api/documents/upload/', views.api_upload_document, name='api_upload_document'),
     path('api/messages/', views.api_messages, name='api_messages'),
     path('api/notifications/', views.api_notifications, name='api_notifications'),
+    path('api/client/appointments/', client_views.client_appointments_api, name='client_appointments_api'),
+    path('api/client/appointments/<int:appointment_id>/cancel/', client_views.cancel_appointment_api, name='cancel_appointment_api'),
     
     # AJAX endpoints
     path('ajax/create-request/', views.ajax_create_request, name='ajax_create_request'),
+    
+    # Admin views
+    path('admin/demande/<int:request_id>/', admin_views.admin_request_detail, name='admin_request_detail'),
+    path('admin/documents/', admin_views.admin_documents_view, name='admin_documents'),
+    path('admin/documents/verify/<int:document_id>/', admin_views.admin_verify_document, name='admin_verify_document'),
+    path('admin/documents/reject/<int:document_id>/', admin_views.admin_reject_document, name='admin_reject_document'),
+    path('admin/documents/delete/<int:document_id>/', admin_views.admin_delete_document, name='admin_delete_document'),
 ]

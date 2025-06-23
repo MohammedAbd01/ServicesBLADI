@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.translation import gettext_lazy as _
@@ -31,7 +31,7 @@ def all_services_view(request):
         'page_title': 'Our Services'
     }
     
-    return render(request, 'frontend/template/index.html', context)
+    return render(request, 'general/index.html', context)
 
 def create_default_categories():
     """Helper function to create default service categories"""
@@ -105,7 +105,7 @@ def tourism_services_view(request):
         'description': 'Découvrez nos services d\'accompagnement pour vos voyages au Maroc',
     }
     
-    return render(request, 'Tourisme.html', context)
+    return render(request, 'general/Tourisme.html', context)
 
 def administrative_services_view(request):
     """View for administrative services"""
@@ -117,7 +117,7 @@ def administrative_services_view(request):
         'description': 'Simplifiez vos démarches administratives au Maroc',
     }
     
-    return render(request, 'Administrative.html', context)
+    return render(request, 'general/Administrative.html', context)
 
 def fiscal_services_view(request):
     """View for fiscal services"""
@@ -129,7 +129,7 @@ def fiscal_services_view(request):
         'description': 'Optimisez votre situation fiscale entre votre pays de résidence et le Maroc',
     }
     
-    return render(request, 'Fiscale.html', context)
+    return render(request, 'general/Fiscale.html', context)
 
 def real_estate_services_view(request):
     """View for real estate services"""
@@ -141,7 +141,7 @@ def real_estate_services_view(request):
         'description': 'Trouvez, achetez ou gérez votre bien immobilier au Maroc',
     }
     
-    return render(request, 'Immobilier.html', context)
+    return render(request, 'general/Immobilier.html', context)
 
 def investment_services_view(request):
     """View for investment services"""
@@ -153,33 +153,88 @@ def investment_services_view(request):
         'description': 'Accompagnement dans vos projets d\'investissement au Maroc',
     }
     
-    return render(request, 'Investisment.html', context)
+    return render(request, 'general/Investisment.html', context)
 
 def contact_view(request):
     """View for contact page and form handling"""
     if request.method == 'POST':
-        name = request.POST.get('name', '')
-        email = request.POST.get('email', '')
-        subject = request.POST.get('subject', '')
-        message_text = request.POST.get('message', '')
-        
-        # Prepare email message
-        full_message = f"Message from: {name}\nEmail: {email}\n\n{message_text}"
-        
         try:
-            # Send email
-            send_mail(
-                subject=f"ServicesBladi Contact: {subject}",
-                message=full_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[settings.SERVICESBLADI_CONTACT_EMAIL],
-                fail_silently=False,
+            # Récupérer les données du formulaire
+            name = request.POST.get('name', '').strip()
+            email = request.POST.get('email', '').strip()
+            subject = request.POST.get('subject', '').strip()
+            message_text = request.POST.get('message', '').strip()
+            
+            # Validation basique
+            if not all([name, email, subject, message_text]):
+                # Si c'est une requête AJAX, renvoyer une erreur
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return HttpResponse('Tous les champs sont requis.', status=400)
+                messages.error(request, 'Tous les champs sont requis.')
+                return render(request, 'general/contact.html')
+            
+            # Import ContactMessage model
+            from custom_requests.models import ContactMessage
+            from accounts.models import Utilisateur
+            
+            # Sauvegarder le message dans la base de données
+            contact_message = ContactMessage.objects.create(
+                name=name,
+                email=email,
+                subject=subject,
+                message=message_text
             )
             
-            messages.success(request, 'Votre message a été envoyé avec succès. Nous vous contacterons bientôt.')
-            return redirect('contact')
+            # Envoyer TOUJOURS à l'adresse de contact définie
+            expert_emails = [getattr(settings, 'SERVICESBLADI_CONTACT_EMAIL', settings.DEFAULT_FROM_EMAIL)]
             
+            # Préparer le contenu de l'email pour les experts
+            email_subject = f"Nouveau message de contact ServicesBladi: {subject}"
+            email_message = f"""
+Nouveau message de contact reçu sur ServicesBladi:
+
+Nom: {name}
+Email: {email}
+Sujet: {subject}
+
+Message:
+{message_text}
+
+---
+Envoyé le: {contact_message.created_at.strftime('%d/%m/%Y à %H:%M')}
+ID du message: {contact_message.id}
+
+Vous pouvez répondre directement à cette personne à l'adresse: {email}
+            """
+              # Envoyer l'email aux experts
+            try:
+                send_mail(
+                    subject=email_subject,
+                    message=email_message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=expert_emails,
+                    fail_silently=False,
+                )
+                
+            except Exception as e:
+                # Continue même si l'email échoue
+                print(f"Erreur d'envoi d'email de contact: {e}")
+            
+            # Si c'est une requête AJAX, renvoyer "OK"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return HttpResponse('OK')
+            
+            # Sinon, rediriger avec un message de succès
+            messages.success(request, 'Votre message a été envoyé avec succès! Nous vous répondrons dans les plus brefs délais.')
+                
         except Exception as e:
-            messages.error(request, f'Une erreur est survenue lors de l\'envoi du message: {str(e)}')
+            # Si c'est une requête AJAX, renvoyer une erreur
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return HttpResponse('Une erreur est survenue lors de l\'envoi de votre message.', status=500)
+            
+            messages.error(request, 'Une erreur est survenue lors de l\'envoi de votre message. Veuillez réessayer.')
+            print(f"Erreur de traitement du formulaire de contact: {e}")
+            
+        return redirect('contact')
     
-    return render(request, 'contact.html')
+    return render(request, 'general/contact.html')

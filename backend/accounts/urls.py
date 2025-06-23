@@ -7,8 +7,9 @@ app_name = 'accounts'
 urlpatterns = [
     # Authentication
     path('login/', views.custom_login_view, name='login'),
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('logout/', views.custom_logout_view, name='logout'),
     path('register/', views.register_view, name='register'),
+    path('register/test/', views.register_test_view, name='register_test'),  # Test route
     path('register/expert/', views.register_expert_view, name='register_expert'),
     
     # Password management
@@ -41,6 +42,7 @@ urlpatterns = [
     path('admin/users/', views.admin_users_view, name='admin_users'),
     path('admin/user/<int:user_id>/', views.admin_user_detail_view, name='admin_user_detail'),
     path('admin/create_user/', views.admin_create_user_view, name='admin_create_user'),
+    path('admin/profile/edit/', views.admin_edit_profile_view, name='admin_edit_profile'),
     
     # API endpoints
     path('api/profile/', views.api_profile, name='api_profile'),

@@ -128,8 +128,10 @@
               <td>{{ doc.get_type_display }}</td>
               <td>{{ doc.upload_date|date:"d/m/Y H:i" }}</td>
               <td>
-                {% if doc.is_official %}
+                {% if doc.status == 'verified' %}
                 <span class="badge bg-success">Vérifié</span>
+                {% elif doc.status == 'rejected' %}
+                <span class="badge bg-danger">Refusé</span>
                 {% else %}
                 <span class="badge bg-warning">En attente</span>
                 {% endif %}
@@ -139,13 +141,17 @@
                   <a href="{{ doc.file.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-eye"></i>
                   </a>
-                  <a href="{% url 'admin_verify_document' doc.id %}" class="btn btn-sm btn-outline-success">
+                  {% if doc.status != 'verified' %}
+                  <a href="{% url 'custom_requests:admin_verify_document' doc.id %}" class="btn btn-sm btn-outline-success">
                     <i class="bi bi-check"></i>
                   </a>
+                  {% endif %}
+                  {% if doc.status != 'rejected' %}
                   <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectModal{{ doc.id }}">
                     <i class="bi bi-x"></i>
                   </button>
-                  <a href="{% url 'admin_delete_document' doc.id %}" class="btn btn-sm btn-outline-danger" 
+                  {% endif %}
+                  <a href="{% url 'custom_requests:admin_delete_document' doc.id %}" class="btn btn-sm btn-outline-danger" 
                      onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce document?');">
                     <i class="bi bi-trash"></i>
                   </a>
@@ -230,7 +236,7 @@
         <h5 class="modal-title" id="rejectModalLabel{{ doc.id }}">Refuser le Document</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <form method="post" action="{% url 'admin_reject_document' doc.id %}">
+      <form method="post" action="{% url 'custom_requests:admin_reject_document' doc.id %}">
         {% csrf_token %}
         <div class="modal-body">
           <p>Vous êtes sur le point de refuser le document "<strong>{{ doc.name }}</strong>".</p>
@@ -248,4 +254,4 @@
   </div>
 </div>
 {% endfor %}
-{% endblock admin_content %}
+{% endblock %}

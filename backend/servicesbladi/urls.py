@@ -19,10 +19,9 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.utils.translation import gettext_lazy as _
-from django.conf.urls.i18n import i18n_patterns
 from django.contrib.auth import views as auth_views
-from django.contrib.auth.views import LogoutView
 from django.shortcuts import redirect
+from django.http import JsonResponse
 
 # Import message_views from custom_requests app for direct URL mapping
 from custom_requests.message_views import expert_check_messages
@@ -31,18 +30,24 @@ from custom_requests.message_views import expert_check_messages
 def admin_login_redirect(request):
     return redirect('accounts:admin_login_view')
 
+# Simple status check
+def status_check(request):
+    return JsonResponse({"status": "ok", "message": "Django server is working"})
+
 urlpatterns = [
     path('django-admin/', admin.site.urls),  # Renamed Django admin URL to avoid conflicts
     
     # Admin URL explicit redirect
     path('management/secure8765/login/', admin_login_redirect),
     
+    path('status/', status_check, name='status_check'),
+
     # Include URLs from each app
     path('accounts/', include('accounts.urls')),
-    path('services/', include('services.urls')),
-    path('requests/', include('custom_requests.urls')),
+    path('services/', include('services.urls')),    path('requests/', include('custom_requests.urls')),
     path('resources/', include('resources.urls')),
     path('messaging/', include('messaging.urls')),
+    path('chatbot/', include('chatbot.urls')),
     
     # Frontend URLs (existing HTML templates integration)
     path('', include('servicesbladi.frontend_urls')),

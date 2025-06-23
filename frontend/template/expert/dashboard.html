@@ -7,6 +7,198 @@
 
 {% block extra_styles %}
   <style>
+  /* Responsive styles for mobile */
+  @media (max-width: 768px) {
+    .dashboard-wrapper {
+      padding-left: 0;
+      transition: all 0.3s ease;
+    }
+    
+    .sidebar {
+      transform: translateX(-100%);
+      position: fixed;
+      z-index: 1040;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    
+    .sidebar.show {
+      transform: translateX(0);
+      box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+    }
+    
+    .main-content {
+      margin-left: 0 !important;
+      width: 100%;
+      padding: 1rem;
+    }
+    
+    .mobile-menu-toggle {
+      display: block !important;
+      position: fixed;
+      top: 15px;
+      left: 15px;
+      z-index: 1050;
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .dashboard-stats .col-md-4 {
+      margin-bottom: 15px;
+    }
+    
+    .dashboard-card {
+      margin-bottom: 20px;
+    }
+    
+    .table-responsive {
+      display: block;
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    /* Header responsive */
+    .d-flex.justify-content-between.align-items-center.mb-4 {
+      flex-direction: column;
+      align-items: flex-start !important;
+      gap: 1rem;
+    }
+    
+    .d-flex.justify-content-between.align-items-center.mb-4 h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0;
+    }
+    
+    .d-flex.justify-content-between.align-items-center.mb-4 > div {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      width: 100%;
+      justify-content: flex-start;
+    }
+    
+    /* Notification dropdown mobile */
+    #notificationDropdown {
+      position: fixed !important;
+      top: 80px !important;
+      right: 10px !important;
+      left: 10px !important;
+      width: auto !important;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    
+    #notificationDropdown::before {
+      right: 20px !important;
+    }
+    
+    /* Request content responsive */
+    .request-content {
+      flex-direction: column;
+      align-items: flex-start !important;
+      gap: 0.75rem;
+    }
+    
+    .request-client {
+      width: 100%;
+    }
+    
+    .view-btn {
+      align-self: flex-end;
+    }
+    
+    /* Document/appointment responsive */
+    .document-info, .client-info {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .document-name, .client-name {
+      font-size: 0.9rem !important;
+    }
+    
+    .document-author, .service-title {
+      font-size: 0.8rem !important;
+    }
+    
+    /* Stats cards responsive */
+    .dashboard-stats .card-body {
+      padding: 1rem 0.75rem;
+    }
+    
+    .dashboard-stats .card-body h3 {
+      font-size: 1.5rem;
+    }
+    
+    .dashboard-stats .card-body i {
+      font-size: 1.8rem !important;
+    }
+    
+    /* Task list responsive */
+    .list-group-item .d-flex {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    
+    /* Modal responsive */
+    .modal-dialog {
+      margin: 0.5rem;
+    }
+  }
+  
+  @media (min-width: 769px) {
+    .mobile-menu-toggle {
+      display: none !important;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .main-content {
+      padding: 0.75rem;
+    }
+    
+    .dashboard-card .card-body {
+      padding: 1rem;
+    }
+    
+    .request-header {
+      flex-direction: column;
+      align-items: flex-start !important;
+      gap: 0.5rem;
+    }
+    
+    .request-meta {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    
+    .request-ref, .request-date, .appointment-date, .request-time {
+      font-size: 0.75rem !important;
+    }
+    
+    .client-avatar {
+      width: 35px !important;
+      height: 35px !important;
+    }
+    
+    .avatar-placeholder {
+      font-size: 0.7rem !important;
+    }
+    
+    #notificationDropdown {
+      max-height: 60vh;
+    }
+  }
+
   /* Additional dashboard-specific styles */
   .dashboard-stats .card {
       transition: transform 0.3s ease;
@@ -60,6 +252,200 @@
       transform: translateY(0) scale(1);
     }
   }
+
+  /* New Service Request List Styles */
+  .request-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .request-item {
+    padding: 1rem;
+    border-bottom: 1px solid var(--card-border-color);
+    transition: background-color 0.2s ease;
+  }
+
+  .request-item:last-child {
+    border-bottom: none;
+  }
+
+  .request-item:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+
+  .request-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .request-meta {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .request-ref {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--bs-primary);
+    background-color: rgba(13, 110, 253, 0.1);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+  }
+
+  .request-date {
+    font-size: 0.8rem;
+    color: #6c757d;
+  }
+
+  .request-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .request-client {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .client-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    background-color: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .avatar-placeholder {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+  }
+
+  .client-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .client-name {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .service-title {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #6c757d;
+  }
+
+  .view-btn {
+    padding: 0.35rem 0.65rem;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Updated Status Badge Styles */
+  .status-badge {
+    padding: 0.35rem 0.7rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .status-badge i {
+    font-size: 0.7rem;
+    margin-right: 0.25rem;
+  }
+
+  .status-completed {
+    background-color: #e3fcef;
+    color: #00a854;
+  }
+
+  /* Empty state styles */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.5rem;
+    color: #6c757d;
+  }
+
+  .empty-state i {
+    font-size: 2rem;
+    opacity: 0.5;
+  }
+
+  /* Document item styles */
+  .document-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .document-name {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .document-author {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #6c757d;
+  }
+
+  /* Make the "Voir tout" buttons more accessible */
+  .card-header .btn-sm {
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+  }
+
+  .card-header .btn-sm i {
+    transition: transform 0.2s ease;
+  }
+
+  .card-header .btn-sm:hover i {
+    transform: translateX(2px);
+  }
+
+  /* Appointment styles */
+  .appointment-date,
+  .request-time {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.8rem;
+    color: #6c757d;
+  }
+
+  .appointment-date i,
+  .request-time i {
+    font-size: 0.75rem;
+    opacity: 0.8;
+  }
   </style>
 {% endblock %}
 
@@ -94,7 +480,7 @@
               <div class="list-group list-group-flush">
                 {% if notifications %}
                   {% for notification in notifications %}
-                    <a href="{% url 'custom_requests:mark_notification_read' notification.id %}?redirect_url={% if notification.related_service_request %}{% url 'expert_request_detail' notification.related_service_request.id %}{% elif notification.related_rendez_vous %}{% url 'custom_requests:appointment_detail' notification.related_rendez_vous.id %}{% elif notification.type == 'message' %}{% url 'expert_messages' %}{% else %}{% url 'expert_dashboard' %}{% endif %}" 
+                    <a href="{% url 'custom_requests:mark_notification_read' notification.id %}?redirect_url={% if notification.related_service_request %}{% url 'expert_request_detail' notification.related_service_request.id %}{% elif notification.related_rendez_vous %}{% url 'expert_rendezvous' %}?appointment_id={{ notification.related_rendez_vous.id }}{% elif notification.type == 'message' %}{% url 'expert_messages' %}{% else %}{% url 'expert_dashboard' %}{% endif %}" 
                        class="list-group-item list-group-item-action border-0 p-0">
                       <div class="px-3 py-3 {% if not notification.is_read %}position-relative overflow-hidden{% endif %}" style="transition: all 0.2s ease;">
                         {% if not notification.is_read %}
@@ -176,28 +562,73 @@
       <div class="row">
         <div class="col-md-8">
           <div class="dashboard-card">
-            <div class="card-header">
-              <h5 class="mb-0">Prochains Rendez-vous</h5>
-              <a href="{% url 'expert_rendezvous' %}" class="btn btn-sm btn-primary">Voir tout</a>
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Prochains Rendez-vous</h5>
+              <a href="{% url 'expert_rendezvous' %}" class="btn btn-sm btn-primary" aria-label="Voir tous les rendez-vous">
+                <span>Voir tout</span>
+                <i class="bi bi-arrow-right ms-1"></i>
+              </a>
             </div>
-            <div class="card-body">
-              <div class="list-group">
-                {% if upcoming_appointments %}
+            <div class="card-body p-0">
+              {% if upcoming_appointments %}
+                <div class="request-list">
                   {% for appointment in upcoming_appointments %}
-                    <div class="list-group-item">
-                      <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">{{ appointment.service.title }} - {{ appointment.client.name }} {{ appointment.client.first_name }}</h6>
-                  <small class="text-muted">{{ appointment.date_time|date:"d M Y" }} - {{ appointment.date_time|time:"H:i" }}</small>
+                    <div class="request-item">
+                      <div class="request-header">
+                        <div class="request-meta">
+                          <span class="request-ref">#{{ appointment.id }}</span>
+                          <span class="request-date appointment-date">
+                            <i class="bi bi-calendar2 me-1"></i>{{ appointment.date_time|date:"d M Y" }}
+                          </span>
+                          <span class="request-time">
+                            <i class="bi bi-clock me-1"></i>{{ appointment.date_time|time:"H:i" }}
+                          </span>
+                        </div>
+                        <div class="appointment-type">
+                          <span class="status-badge status-active">
+                            {% if appointment.consultation_type == 'in_person' %}
+                              <i class="bi bi-person-fill me-1"></i>En personne
+                            {% elif appointment.consultation_type == 'video' %}
+                              <i class="bi bi-camera-video-fill me-1"></i>Vidéo
+                            {% elif appointment.consultation_type == 'phone' %}
+                              <i class="bi bi-telephone-fill me-1"></i>Téléphone
+                            {% else %}
+                              <i class="bi bi-calendar-check-fill me-1"></i>{{ appointment.consultation_type }}
+                            {% endif %}
+                          </span>
+                        </div>
                       </div>
-                      <p class="mb-1">{{ appointment.consultation_type }}</p>
+                      <div class="request-content">
+                        <div class="request-client">
+                          <div class="client-avatar">
+                            {% if appointment.client.profile_picture %}
+                              <img src="{{ appointment.client.profile_picture.url }}" alt="{{ appointment.client.name }}" class="avatar-img">
+                            {% else %}
+                              <div class="avatar-placeholder">
+                                {{ appointment.client.name|slice:":1" }}{{ appointment.client.first_name|slice:":1" }}
+                              </div>
+                            {% endif %}
+                          </div>
+                          <div class="client-info">
+                            <h6 class="client-name">{{ appointment.client.name }} {{ appointment.client.first_name }}</h6>
+                            <p class="service-title">{{ appointment.service.title }}</p>
+                          </div>
+                        </div>
+                        <a href="{% url 'expert_appointment_detail' appointment.id %}" class="btn btn-sm btn-outline-primary view-btn">
+                          <i class="bi bi-eye-fill"></i>
+                        </a>
+                      </div>
                     </div>
                   {% endfor %}
-                {% else %}
-                  <div class="list-group-item">
-                    <p class="mb-1 text-center">Pas de rendez-vous prévus</p>
+                </div>
+              {% else %}
+                <div class="text-center py-4">
+                  <div class="empty-state">
+                    <i class="bi bi-calendar-x text-muted"></i>
+                    <p>Pas de rendez-vous prévus</p>
                   </div>
-                {% endif %}
-              </div>
+                </div>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -207,30 +638,74 @@
       <div class="row mt-4">
         <div class="col-md-6">
           <div class="dashboard-card">
-            <div class="card-header">
-              <h5 class="mb-0">Demandes Récentes</h5>
-              <a href="{% url 'expert_demandes' %}" class="btn btn-sm btn-primary">Voir tout</a>
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Demandes Récentes</h5>
+              <a href="{% url 'expert_demandes' %}" class="btn btn-sm btn-primary" aria-label="Voir toutes les demandes">
+                <span>Voir tout</span>
+                <i class="bi bi-arrow-right ms-1"></i>
+              </a>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
               {% if recent_requests %}
-                {% for request in recent_requests %}
-                  <div class="client-item">
-                    <div class="client-avatar text-center">
-                      <i class="bi bi-file-earmark-text text-primary" style="font-size: 24px;"></i>
+                <div class="request-list">
+                  {% for request in recent_requests %}
+                    <div class="request-item">
+                      <div class="request-header">
+                        <div class="request-meta">
+                          <span class="request-ref">#{{ request.id }}</span>
+                          <span class="request-date">{{ request.created_at|date:"d M Y" }}</span>
+                        </div>
+                        <div class="request-status">
+                          {% if request.status == 'new' %}
+                            <span class="status-badge status-urgent">
+                              <i class="bi bi-exclamation-circle-fill me-1"></i>Nouvelle
+                            </span>
+                          {% elif request.status == 'in_progress' %}
+                            <span class="status-badge status-active">
+                              <i class="bi bi-play-circle-fill me-1"></i>En cours
+                            </span>
+                          {% elif request.status == 'pending' %}
+                            <span class="status-badge status-pending">
+                              <i class="bi bi-clock-fill me-1"></i>En attente
+                            </span>
+                          {% elif request.status == 'completed' %}
+                            <span class="status-badge status-completed">
+                              <i class="bi bi-check-circle-fill me-1"></i>Terminée
+                            </span>
+                          {% else %}
+                            <span class="status-badge">{{ request.status }}</span>
+                          {% endif %}
+                        </div>
+                      </div>
+                      <div class="request-content">
+                        <div class="request-client">
+                          <div class="client-avatar">
+                            {% if request.client.profile_picture %}
+                              <img src="{{ request.client.profile_picture.url }}" alt="{{ request.client.name }}" class="avatar-img">
+                            {% else %}
+                              <div class="avatar-placeholder">
+                                {{ request.client.name|slice:":1" }}{{ request.client.first_name|slice:":1" }}
+                              </div>
+                            {% endif %}
+                          </div>
+                          <div class="client-info">
+                            <h6 class="client-name">{{ request.client.name }} {{ request.client.first_name }}</h6>
+                            <p class="service-title">{{ request.service.title }}</p>
+                          </div>
+                        </div>
+                        <a href="{% url 'expert_request_detail' request.id %}" class="btn btn-sm btn-outline-primary view-btn">
+                          <i class="bi bi-eye-fill"></i>
+                        </a>
+                      </div>
                     </div>
-                    <div class="flex-grow-1">
-                      <h6 class="mb-1">{{ request.client.name }} {{ request.client.first_name }}</h6>
-                      <small class="text-muted">{{ request.service.title }}</small>
-                    </div>
-                    <span class="status-badge 
-                      {% if request.status == 'new' %}status-urgent{% elif request.status == 'in_progress' %}status-active{% else %}status-pending{% endif %}">
-                      {{ request.status }}
-                    </span>
-                  </div>
-                {% endfor %}
+                  {% endfor %}
+                </div>
               {% else %}
-                <div class="text-center py-3">
-                  <p>Pas de demandes récentes</p>
+                <div class="text-center py-4">
+                  <div class="empty-state">
+                    <i class="bi bi-file-earmark-x text-muted"></i>
+                    <p>Pas de demandes récentes</p>
+                  </div>
                 </div>
               {% endif %}
             </div>
@@ -238,30 +713,55 @@
         </div>
         <div class="col-md-6">
           <div class="dashboard-card">
-            <div class="card-header">
-              <h5 class="mb-0">Documents Récents</h5>
-              <a href="{% url 'expert_documents' %}" class="btn btn-sm btn-primary">Voir tout</a>
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Documents Récents</h5>
+              <a href="{% url 'expert_documents' %}" class="btn btn-sm btn-primary" aria-label="Voir tous les documents">
+                <span>Voir tout</span>
+                <i class="bi bi-arrow-right ms-1"></i>
+              </a>
             </div>
-            <div class="card-body">
-              <div class="list-group">
-                {% if recent_documents %}
+            <div class="card-body p-0">
+              {% if recent_documents %}
+                <div class="request-list">
                   {% for document in recent_documents %}
-                    <div class="list-group-item">
-                      <div class="d-flex w-100 justify-content-between">
-                        <h6 class="mb-1">{{ document.name }}</h6>
-                        <small class="text-muted">{{ document.upload_date|timesince }}</small>
+                    <div class="request-item">
+                      <div class="request-header">
+                        <div class="request-meta">
+                          <span class="request-ref">#{{ document.id }}</span>
+                          <span class="request-date">{{ document.upload_date|date:"d M Y" }}</span>
+                        </div>
+                        <div class="document-status">
+                          {% if document.is_official %}
+                            <span class="status-badge status-completed">
+                              <i class="bi bi-check-circle-fill me-1"></i>Officiel
+                            </span>
+                          {% else %}
+                            <span class="status-badge status-pending">
+                              <i class="bi bi-file-earmark me-1"></i>Document
+                            </span>
+                          {% endif %}
+                        </div>
                       </div>
-                      <p class="mb-1">
-                        {{ document.uploaded_by.name }} {% if document.is_official %}<span class="badge bg-success">Officiel</span>{% endif %}
-                      </p>
+                      <div class="request-content">
+                        <div class="document-info">
+                          <h6 class="document-name">{{ document.name }}</h6>
+                          <p class="document-author">{{ document.uploaded_by.name }}</p>
+                        </div>
+                        <a href="{{ document.file.url }}" class="btn btn-sm btn-outline-primary view-btn" target="_blank">
+                          <i class="bi bi-download"></i>
+                        </a>
+                      </div>
                     </div>
                   {% endfor %}
-                {% else %}
-                  <div class="list-group-item">
-                    <p class="mb-1 text-center">Pas de documents récents</p>
+                </div>
+              {% else %}
+                <div class="text-center py-4">
+                  <div class="empty-state">
+                    <i class="bi bi-file-earmark-x text-muted"></i>
+                    <p>Pas de documents récents</p>
                   </div>
-                {% endif %}
-              </div>
+                </div>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -273,10 +773,12 @@
           <div class="dashboard-card">
             <div class="card-header">
               <h5 class="mb-0">Tâches à faire</h5>
-              <a href="#" class="btn btn-sm btn-primary">Ajouter</a>
+              <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                <i class="bi bi-plus-circle me-1"></i>Ajouter
+              </button>
             </div>
             <div class="card-body">
-              <div class="list-group">
+              <div class="list-group" id="taskList">
                 <div class="list-group-item">
                   <div class="d-flex align-items-center">
                     <div class="form-check me-3">
@@ -315,7 +817,39 @@
           </div>
         </div>
       </div>
-{% endblock %}
+
+<!-- Modal pour ajouter une tâche -->
+<div class="modal fade" id="addTaskModal" tabindex="-1" aria-labelledby="addTaskModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addTaskModalLabel">Ajouter une tâche</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="addTaskForm">
+          <div class="mb-3">
+            <label for="taskTitle" class="form-label">Titre</label>
+            <input type="text" class="form-control" id="taskTitle" required>
+          </div>
+          <div class="mb-3">
+            <label for="taskDueDate" class="form-label">Échéance</label>
+            <select class="form-select" id="taskDueDate">
+              <option value="Aujourd'hui">Aujourd'hui</option>
+              <option value="Demain">Demain</option>
+              <option value="Cette semaine">Cette semaine</option>
+              <option value="Ce mois-ci">Ce mois-ci</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" id="saveTaskButton">Ajouter</button>      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
 
 {% block extra_scripts %}
 <script>
@@ -349,13 +883,72 @@
     notificationDropdown.addEventListener('click', function(e) {
       e.stopPropagation();
     });
-  });
-</script>
 
-<script>
-  // Script pour les tâches
-  document.addEventListener('DOMContentLoaded', function() {
-    // Gérer les cases à cocher des tâches
+    // Gestion des tâches
+    const taskList = document.getElementById('taskList');
+    const addTaskForm = document.getElementById('addTaskForm');
+    const taskTitle = document.getElementById('taskTitle');
+    const taskDueDate = document.getElementById('taskDueDate');
+    const saveTaskButton = document.getElementById('saveTaskButton');
+    const addTaskModal = new bootstrap.Modal(document.getElementById('addTaskModal'));
+
+    // Gérer l'ajout d'une nouvelle tâche
+    saveTaskButton.addEventListener('click', function() {
+      // Vérifier que le titre n'est pas vide
+      if (taskTitle.value.trim() === '') {
+        taskTitle.classList.add('is-invalid');
+        return;
+      }
+
+      // Créer un ID unique pour la tâche
+      const taskId = 'task-' + Date.now();
+      
+      // Créer un nouvel élément de tâche
+      const taskItem = document.createElement('div');
+      taskItem.className = 'list-group-item';
+      taskItem.innerHTML = `
+        <div class="d-flex align-items-center">
+          <div class="form-check me-3">
+            <input class="form-check-input" type="checkbox" id="${taskId}">
+          </div>
+          <div>
+            <h6 class="mb-1">${taskTitle.value}</h6>
+            <p class="mb-1 text-muted small">${taskDueDate.value}</p>
+          </div>
+        </div>
+      `;
+      
+      // Ajouter la tâche au début de la liste
+      taskList.prepend(taskItem);
+      
+      // Réinitialiser le formulaire et fermer le modal
+      taskTitle.value = '';
+      taskDueDate.value = 'Aujourd\'hui';
+      addTaskModal.hide();
+    });
+
+    // Réinitialiser la validation quand on tape dans le champ
+    taskTitle.addEventListener('input', function() {
+      if (this.value.trim() !== '') {
+        this.classList.remove('is-invalid');
+      }
+    });    // Gérer le cochage des tâches (marquer comme terminé)
+    taskList.addEventListener('change', function(e) {
+      if (e.target.type === 'checkbox') {
+        const taskItem = e.target.closest('.list-group-item');
+        const taskTitle = taskItem.querySelector('h6');
+        
+        if (e.target.checked) {
+          taskTitle.style.textDecoration = 'line-through';
+          taskTitle.style.color = '#6c757d';
+        } else {
+          taskTitle.style.textDecoration = 'none';
+          taskTitle.style.color = '';
+        }
+      }
+    });
+    
+    // Gérer les cases à cocher des tâches existantes
     const taskCheckboxes = document.querySelectorAll('.form-check-input');
     
     taskCheckboxes.forEach(checkbox => {
@@ -373,4 +966,4 @@
     });
   });
 </script>
-{% endblock %} 
+{% endblock extra_scripts %}

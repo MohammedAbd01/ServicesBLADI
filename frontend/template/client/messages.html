@@ -5,6 +5,18 @@
 {% block meta_description %}Espace de messagerie client MRE{% endblock %}
 {% block meta_keywords %}MRE, messagerie, communication, experts{% endblock %}
 
+{% block head_extras %}
+<!-- Include consolidated messaging fixes -->
+<link rel="stylesheet" href="{% static 'css/messaging-fixes.css' %}">
+<!-- Critical fixes - must load last -->
+<link rel="stylesheet" href="{% static 'css/messaging-critical-fixes.css' %}">
+<!-- Responsive messaging CSS -->
+<link rel="stylesheet" href="{% static 'css/messages-responsive.css' %}">
+<!-- Add URL metadata for JavaScript -->
+<meta name="check-messages-url" content="/requests/client/check_messages/">
+<meta name="client-messages-url" content="/client/messages/">
+{% endblock %}
+
 {% block content %}
   <!-- Main Content -->
   <div class="container-fluid">
@@ -78,14 +90,12 @@
               <div class="chat-contact-status">
                 {% if active_contact.account_type == 'expert' %}Expert{% elif active_contact.account_type == 'admin' %}Administrateur{% else %}Client{% endif %}
               </div>
-            </div>
-          </div>
-          
-          <div class="chat-messages" id="chatMessages">
-            {% for message in messages %}
+            </div>          </div>
+            <div class="chat-messages" id="chatMessages">
+            {% for message in messages|slice:":50" %}
               <div class="message {% if message.sender == request.user %}sent{% else %}received{% endif %}">
                 <div class="message-content">
-                  <div>{{ message.content }}</div>
+                  <div>{{ message.content|truncatechars:2000|linebreaksbr|escape }}</div>
                   <div class="message-time">{{ message.sent_at|date:"H:i" }}</div>
                 </div>
               </div>
@@ -97,8 +107,7 @@
               </div>
             {% endfor %}
           </div>
-          
-          <form class="chat-input" id="messageForm" action="{% url 'custom_requests:client_send_message' active_contact.id %}" method="post">
+            <form class="chat-input" id="messageForm" action="/requests/client/send_message/{{ active_contact.id }}/" method="post">
             {% csrf_token %}
             <input type="text" name="message" placeholder="Tapez votre message..." id="messageInput" required>
             <button type="submit">
@@ -211,13 +220,16 @@
       flex: 1;
       display: flex;
       flex-direction: column;
-    }
-
-    .chat-header {
+    }    .chat-header {
       display: flex;
       align-items: center;
       padding: 1rem;
       border-bottom: 1px solid #eee;
+    }
+    
+    /* Hide back button on desktop */
+    #showContacts {
+      display: none;
     }
 
     .chat-avatar {
@@ -261,12 +273,12 @@
       padding: 0.75rem 1rem;
       border-radius: 1rem;
       position: relative;
-    }
-
-    .sent .message-content {
-      background: var(--primary-color);
-      color: white;
+    }    .sent .message-content {
+      background: #DCF8C6 !important;
+      background-color: #DCF8C6 !important;
+      color: #1f1f1f !important;
       border-bottom-right-radius: 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
 
     .received .message-content {
@@ -330,151 +342,275 @@
       font-size: 4rem;
       margin-bottom: 1rem;
       opacity: 0.3;
-    }
-
-    /* Responsive Design */
+    }    /* Responsive Design */
     @media (max-width: 992px) {
+      .chat-container {
+        position: relative;
+      }
+      
       .contacts-list {
         width: 100%;
         position: absolute;
         height: 100%;
-        z-index: 5;
-        transform: translateX(-100%);
+        z-index: 10;
+        background: white;
         transition: transform 0.3s ease;
       }
-      .contacts-list.active {
+      
+      .chat-main {
+        width: 100%;
+        position: absolute;
+        height: 100%;
+        z-index: 5;
+        background: white;
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+      }
+      
+      /* When a contact is selected, show chat and hide contacts */
+      .chat-container.chat-active .contacts-list {
+        transform: translateX(-100%);
+      }
+      
+      .chat-container.chat-active .chat-main {
         transform: translateX(0);
       }
+      
       .chat-header {
         padding: 0.75rem;
       }
-    }
-  </style>
-  
-  <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    // Mobile view - show contacts list
-    const showContactsBtn = document.getElementById('showContacts');
-    const contactsList = document.querySelector('.contacts-list');
-    
-    if (showContactsBtn) {
-      showContactsBtn.addEventListener('click', function() {
-        contactsList.classList.add('active');
-      });
-    }
-    
-    // Handle contact item clicks
-    const contactItems = document.querySelectorAll('.contact-item');
-    contactItems.forEach(item => {
-      item.addEventListener('click', function() {
-        // Get contact ID
-        const contactId = this.dataset.contactId;
-        if (contactId) {
-          window.location.href = "{% url 'client_messages' %}?contact=" + contactId;
-        }
-      });
-    });
-    
-    // Contact search functionality
-    const searchInput = document.getElementById('contactSearch');
-    if (searchInput) {
-      searchInput.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase();
-        
-        contactItems.forEach(item => {
-          const name = item.querySelector('.contact-name').textContent.toLowerCase();
-          if (name.includes(searchTerm)) {
-            item.style.display = 'flex';
-          } else {
-            item.style.display = 'none';
-          }
-        });
-      });
-    }
-    
-    // Auto-scroll to bottom of chat
-    const chatMessages = document.getElementById('chatMessages');
-    if (chatMessages) {
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-    
-    // Handle message form submission with AJAX
-    const messageForm = document.getElementById('messageForm');
-    const messageInput = document.getElementById('messageInput');
-    
-    if (messageForm) {
-      messageForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const message = messageInput.value.trim();
-        if (message) {
-          const formData = new FormData(messageForm);
-          
-          // Display the message immediately
-          const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          const messageHTML = `
-            <div class="message sent">
-              <div class="message-content">
-                <div>${message}</div>
-                <div class="message-time">${currentTime}</div>
-              </div>
-            </div>
-          `;
-          
-          chatMessages.insertAdjacentHTML('beforeend', messageHTML);
-          messageInput.value = '';
-          
-          // Scroll to bottom
-          chatMessages.scrollTop = chatMessages.scrollHeight;
-          
-          // Send the message with AJAX
-          fetch(messageForm.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-              'X-Requested-With': 'XMLHttpRequest'
-            }
-          }).then(response => response.json())
-            .then(data => {
-              if (!data.success) {
-                console.error('Error sending message:', data.error);
-              }
-            })
-            .catch(error => {
-              console.error('Error:', error);
-            });
-        }
-      });
-    }
-    
-    // Check for new messages every 10 seconds
-    function checkNewMessages() {
-      const activeContact = document.querySelector('.contact-item.active');
-      if (activeContact && activeContact.dataset.contactId) {
-        const contactId = activeContact.dataset.contactId;
-        // Add timestamp to prevent caching
-        const timestamp = new Date().getTime();
-        
-        fetch(`{% url 'custom_requests:client_check_messages' %}?contact=${contactId}&_=${timestamp}`, {
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        }).then(response => response.json())
-          .then(data => {
-            if (data.new_messages) {
-              // Reload the page without using cache
-              window.location.reload(true);
-            }
-          })
-          .catch(error => {
-            console.error('Error checking messages:', error);
-          });
+        /* Back button styling */
+      #showContacts {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        color: #6c757d;
+        padding: 0.5rem;
+        margin-right: 0.5rem;
+        border-radius: 0.25rem;
+        width: 36px;
+        height: 36px;
+      }
+      
+      #showContacts:hover {
+        color: #495057;
+        background: rgba(0,0,0,0.05);
       }
     }
+  </style>    <script>
+// Client Messages - Ultra Safe Anti-Crash Script
+(function() {
+    'use strict';
     
-    // Poll for new messages every 10 seconds
-    setInterval(checkNewMessages, 10000);
-  });
-  </script>
+    // Safety constants - minimal settings to prevent crashes
+    const SAFE_CONFIG = {
+        maxMessages: 25,
+        clickDelay: 2000,        // 2 second delay between clicks
+        messageLimit: 1000,      // Shorter message limit
+        maxRetries: 2,           // Fewer retries
+        pollDisabled: true       // Disable polling completely for safety
+    };
+    
+    let lastClickTime = 0;
+    let isNavigating = false;
+      // Ultra-safe contact click handler
+    function handleContactClick(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const now = Date.now();
+        if (now - lastClickTime < SAFE_CONFIG.clickDelay) {
+            console.log('Click ignored - too soon');
+            return false;
+        }
+        
+        if (isNavigating) {
+            console.log('Already navigating');
+            return false;
+        }
+        
+        lastClickTime = now;
+        
+        try {
+            const contactId = this.dataset.contactId;
+            if (!contactId || !/^\d+$/.test(contactId)) {
+                console.warn('Invalid contact ID');
+                return false;
+            }
+            
+            const id = parseInt(contactId, 10);
+            if (isNaN(id) || id <= 0) {
+                console.warn('Invalid contact ID number');
+                return false;
+            }
+            
+            isNavigating = true;
+            
+            // Show visual feedback
+            this.style.opacity = '0.5';
+            
+            // For mobile: Show chat area immediately
+            if (window.innerWidth <= 992) {
+                const chatContainer = document.querySelector('.chat-container');
+                if (chatContainer) {
+                    chatContainer.classList.add('chat-active');
+                }
+                
+                // Add a small delay before actual navigation
+                setTimeout(() => {
+                    try {
+                        window.location.href = `/client/messages/?contact=${id}`;
+                    } catch (error) {
+                        console.error('Navigation error:', error);
+                        isNavigating = false;
+                        this.style.opacity = '1';
+                        // Reset mobile view
+                        chatContainer.classList.remove('chat-active');
+                    }
+                }, 300);
+            } else {
+                // Desktop: Navigate immediately
+                setTimeout(() => {
+                    try {
+                        window.location.href = `/client/messages/?contact=${id}`;
+                    } catch (error) {
+                        console.error('Navigation error:', error);
+                        isNavigating = false;
+                        this.style.opacity = '1';
+                    }
+                }, 200);
+            }
+            
+        } catch (error) {
+            console.error('Contact click error:', error);
+            isNavigating = false;
+            this.style.opacity = '1';
+        }
+        
+        return false;
+    }
+    
+    // Ultra-safe search function
+    function safeSearch(searchTerm) {
+        if (!searchTerm || searchTerm.length > 50) return;
+        
+        try {
+            const items = document.querySelectorAll('.contact-item');
+            for (let i = 0; i < items.length && i < 20; i++) {
+                const item = items[i];
+                const nameEl = item.querySelector('.contact-name');
+                if (nameEl && nameEl.textContent) {
+                    const name = nameEl.textContent.toLowerCase();
+                    item.style.display = name.includes(searchTerm.toLowerCase()) ? 'flex' : 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Search error:', error);
+        }
+    }
+    
+    // Simple initialization without complex features
+    function initSafeMessaging() {
+        try {
+            // Setup contact clicks with safety
+            const contactItems = document.querySelectorAll('.contact-item');
+            contactItems.forEach(item => {
+                if (item.dataset.contactId) {
+                    item.removeEventListener('click', handleContactClick); // Remove any existing
+                    item.addEventListener('click', handleContactClick);
+                }
+            });
+            
+            // Setup search (simplified)
+            const searchInput = document.getElementById('contactSearch');
+            if (searchInput) {
+                let searchTimeout;
+                searchInput.addEventListener('input', function(e) {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        safeSearch(e.target.value.trim());
+                    }, 500);
+                });
+            }
+            
+            // Safe scroll to bottom
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) {
+                try {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                } catch (scrollError) {
+                    console.warn('Scroll error ignored');
+                }
+            }
+              // Mobile contacts button (back to contacts)
+            const showContactsBtn = document.getElementById('showContacts');
+            const contactsList = document.querySelector('.contacts-list');
+            const chatContainer = document.querySelector('.chat-container');
+            
+            if (showContactsBtn && contactsList && chatContainer) {
+                showContactsBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Remove chat-active class to show contacts list
+                    chatContainer.classList.remove('chat-active');
+                    
+                    // Optional: Navigate back to messages without contact parameter
+                    setTimeout(() => {
+                        window.location.href = '/client/messages/';
+                    }, 300);
+                });
+            }
+            
+            // Initialize mobile view
+            function initMobileView() {
+                if (window.innerWidth <= 992) {
+                    const chatContainer = document.querySelector('.chat-container');
+                    const activeContact = document.querySelector('.contact-item.active');
+                    
+                    if (chatContainer && activeContact) {
+                        // If there's an active contact on mobile, show chat
+                        chatContainer.classList.add('chat-active');
+                    }
+                }
+            }
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                const chatContainer = document.querySelector('.chat-container');
+                if (window.innerWidth > 992 && chatContainer) {
+                    // Reset mobile classes on desktop
+                    chatContainer.classList.remove('chat-active');
+                }
+            });
+            
+            // Initialize mobile view
+            initMobileView();
+            
+            console.log('Safe messaging initialized');
+            
+        } catch (error) {
+            console.error('Init error:', error);
+        }
+    }
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSafeMessaging);
+    } else {
+        initSafeMessaging();
+    }
+    
+    // Global error handler
+    window.addEventListener('error', function(e) {
+        console.error('Global error caught and handled:', e.error);
+        e.preventDefault();
+        return true;
+    });    
+})();
+</script>
+
+<!-- Include responsive messaging JavaScript -->
+<script src="{% static 'js/messages-responsive.js' %}"></script>
 {% endblock %}

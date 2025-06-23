@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -9,8 +10,8 @@
   <meta name="keywords" content="{% block meta_keywords %}{% endblock %}">
 
   <!-- Favicons -->
-  <link href="../../static/img/favicon.png" rel="icon">
-  <link href="../../static/img/apple-touch-icon.png" rel="apple-touch-icon">
+  <link href="{% static 'img/favicon.png' %}" rel="icon">
+  <link href="{% static 'img/apple-touch-icon.png' %}" rel="apple-touch-icon">
 
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com" rel="preconnect">
@@ -18,15 +19,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
 
   <!-- Vendor CSS Files -->
-  <link href="../../static/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
-  <link href="../../static/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link href="../../static/vendor/aos/aos.css" rel="stylesheet">
-  <link href="../../static/vendor/animate.css/animate.min.css" rel="stylesheet">
-  <link href="../../static/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
-  <link href="../../static/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+  <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+  <link href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}" rel="stylesheet">
+  <link href="{% static 'vendor/aos/aos.css' %}" rel="stylesheet">
+  <link href="{% static 'vendor/animate.css/animate.min.css' %}" rel="stylesheet">
+  <link href="{% static 'vendor/glightbox/css/glightbox.min.css' %}" rel="stylesheet">
+  <link href="{% static 'vendor/swiper/swiper-bundle.min.css' %}" rel="stylesheet">
 
   <!-- Main CSS File -->
-  <link href="../../static/css/main.css" rel="stylesheet">
+  <link href="{% static 'css/main.css' %}" rel="stylesheet">
 
   <!-- Dashboard specific CSS -->
   <style>
@@ -237,9 +238,7 @@
       min-height: 100vh;
       position: relative;
       width: 100%;
-    }
-
-    /* Sidebar Styles (Adapted from dashboard.html, but using variables from base.html) */
+    }    /* Sidebar Styles (Adapted from dashboard.html, but using variables from base.html) */
     .sidebar {
       width: var(--sidebar-width);
       background: linear-gradient(180deg, var(--primary-color) 0%, var(--secondary-color) 100%); /* Updated gradient to match dashboard.html */
@@ -249,7 +248,7 @@
       height: 100vh;
       left: 0;
       top: 0;
-      z-index: 1000; /* Lower than header's z-index if header overlaps */
+      z-index: 1060; /* Higher than profile form to appear above it */
       transition: all 0.3s ease;
       overflow-y: auto;
       scrollbar-width: thin; 
@@ -564,10 +563,37 @@
         border: none;
         padding: 0.5rem; /* Clickable area */
         display: none; /* Hidden by default, shown in media query */
-    }
-     #sidebarToggle:hover {
+    }     #sidebarToggle:hover {
         color: var(--secondary-color); 
      }
+
+    /* Bouton Menu pour le formulaire de profil - Style beige comme l'image */
+    .profile-menu-btn {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        background-color: var(--secondary-color) !important; /* Couleur beige */
+        border: 1px solid var(--secondary-color) !important;
+        color: white !important;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        z-index: 1060;
+        display: none; /* Caché par défaut, affiché seulement en responsive */
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .profile-menu-btn:hover {
+        background-color: color-mix(in srgb, var(--secondary-color), #000000 10%) !important;
+        border-color: color-mix(in srgb, var(--secondary-color), #000000 10%) !important;
+    }
+    
+    .profile-menu-btn i {
+        font-size: 1rem;
+    }
 
     .header-right {
         margin-left: auto;
@@ -704,13 +730,11 @@
         border-top: none; /* Tabs provide top border */
         border-radius: 0 0 0.5rem 0.5rem; /* Rounded bottom corners */
         background-color: var(--card-bg-color);
-    }
-
-    /* Responsive adjustments */
+    }    /* Responsive adjustments */
     @media (max-width: 991.98px) { /* Tablet and mobile */
       .sidebar {
         transform: translateX(-100%); /* Hide sidebar off-screen */
-        z-index: 1040; /* Ensure sidebar is above content but below modals/header toggle */
+        z-index: 1060; /* Ensure sidebar is above profile form and all other content */
       }
       .sidebar.active { /* When mobile menu is toggled */
           transform: translateX(0);
@@ -724,13 +748,17 @@
       .client-header { /* Header adjustments for mobile */
         padding: 0 15px; /* Reduce padding */
         z-index: 1035; /* Ensure header toggle is accessible */
-      }
-      #sidebarToggle { /* Show mobile toggle button */
+      }      #sidebarToggle { /* Show mobile toggle button */
           display: block; 
           position: fixed; /* Fix toggle to viewport if header moves */
           left: 15px;
           top: calc((var(--header-height) - 38px) / 2); /* Center vertically in header */
           z-index: 1045; /* Above sidebar */
+      }
+      
+      /* Afficher le bouton menu dans le formulaire de profil sur mobile/tablette */
+      .profile-menu-btn {
+          display: flex !important;
       }
       body.sidebar-active .main-content { /* When sidebar is open on mobile, content should not shift */
            margin-left: 0; 
@@ -806,9 +834,9 @@
     /* Hide main content's scrollbar when profile form is shown, and prevent interaction */
     body.profile-form-active .main-content {
       visibility: hidden; /* Or pointer-events: none; and filter: blur(2px); for a different effect */
-    }
-    body.profile-form-active .client-header {
+    }    body.profile-form-active .client-header {
       /* Optionally adjust header if needed when form is open */
+      z-index: 1040;
     }
 
     @media (max-width: 991.98px) {
@@ -936,9 +964,291 @@
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
         border-bottom: 1px solid var(--card-border-color);
-    }
-    form .form-text {
+    }    form .form-text {
         font-size: 0.85rem;
+    }
+
+    /* Styles responsifs pour le formulaire de profil - Identiques à dashboard.html */
+      /* Additional CSS for profile edit form */
+    .profile-edit-form {
+      background-color: white;
+      border-radius: 15px;
+      padding: 1.5rem;
+      box-shadow: 0 0 20px rgba(0,0,0,0.05);
+      margin-bottom: 2rem;
+    }    /* Force white background for consistent styling regardless of access method */
+    body, .main-content, .dashboard-wrapper {
+      background-color: white !important;
+    }
+
+    /* Profile form white background enforcement */
+    .profile-edit-form {
+      background-color: white !important;
+    }
+
+    .profile-edit-form .card {
+      background-color: white !important;
+    }
+
+    .profile-edit-form .card-body {
+      background-color: white !important;
+    }
+
+    /* Ensure form container and header have white background */
+    .profile-edit-form .container-fluid {
+      background-color: white !important;
+    }
+
+    .profile-edit-form .card-header {
+      background-color: white !important;
+    }
+
+    /* Beige button styling for profile form - all button variants */
+    .profile-edit-form .btn-primary,
+    .profile-edit-form .btn-lg {
+      background-color: var(--secondary-color) !important;
+      border-color: var(--secondary-color) !important;
+      color: white !important;
+    }
+
+    .profile-edit-form .btn-primary:hover,
+    .profile-edit-form .btn-lg:hover {
+      background-color: #b8904f !important;
+      border-color: #b8904f !important;
+      color: white !important;
+    }
+    
+    /* Make sure sidebar always stays visible */
+    @media (min-width: 993px) {
+      .main-content {
+        margin-left: var(--sidebar-width);
+        width: calc(100% - var(--sidebar-width));
+      }
+      
+      .profile-edit-form {
+        width: 100%;
+      }
+    }
+    
+    /* Media queries pour la responsivité du formulaire de profil */
+    @media (max-width: 992px) {
+      .profile-edit-form {
+        width: 100% !important;
+        left: 0 !important;
+        right: 0 !important;
+        padding: 1rem 0.5rem !important;
+        z-index: 1055;
+      }
+      
+      .profile-edit-form .container-fluid {
+        padding: 0 !important;
+      }
+      
+      .profile-edit-form .card {
+        margin: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+      }
+      
+      .profile-edit-form .card-body {
+        padding: 1rem !important;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .profile-edit-form {
+        padding: 0.5rem !important;
+      }
+      
+      .profile-edit-form .col-lg-11,
+      .profile-edit-form .col-xl-10 {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+      }
+      
+      .profile-edit-form .card-header {
+        padding: 0.75rem !important;
+      }
+      
+      .profile-edit-form .card-body {
+        padding: 0.75rem !important;
+      }
+      
+      /* Responsive columns pour tous les champs */
+      .profile-edit-form .col-md-6,
+      .profile-edit-form .col-md-8,
+      .profile-edit-form .col-lg-7 {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+        margin-bottom: 1rem !important;
+      }
+      
+      /* Photo de profil plus petite sur mobile */
+      .profile-edit-form .profile-photo {
+        width: 100px !important;
+        height: 100px !important;
+      }
+      
+      /* Input groups adaptés */
+      .profile-edit-form .input-group-text {
+        font-size: 0.9rem !important;
+        padding: 0.5rem !important;
+      }
+      
+      .profile-edit-form .form-control {
+        font-size: 0.9rem !important;
+        padding: 0.5rem !important;
+      }
+      
+      /* Boutons empilés sur mobile */
+      .profile-edit-form .d-flex.gap-2 {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+      }
+      
+      .profile-edit-form .btn {
+        width: 100% !important;
+        margin-bottom: 0.5rem !important;
+      }
+    }
+    
+    @media (max-width: 576px) {
+      .profile-edit-form {
+        width: 100% !important;
+        left: 0 !important;
+        right: 0 !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        z-index: 1055;
+      }
+      
+      .profile-edit-form .card {
+        min-height: 100vh !important;
+        border-radius: 0 !important;
+        border: none !important;
+      }
+        .profile-edit-form .card-header {
+        padding: 1rem !important;
+        background: white !important;
+        color: var(--primary-color) !important;
+        border-radius: 0 !important;
+      }
+        .profile-edit-form .card-header h4 {
+        color: var(--primary-color) !important;
+        font-size: 1.1rem !important;
+      }
+      
+      .profile-edit-form .card-body {
+        padding: 1rem 0.75rem !important;
+      }
+      
+      /* Photo de profil encore plus petite */
+      .profile-edit-form .profile-photo {
+        width: 80px !important;
+        height: 80px !important;
+      }
+      
+      /* Tous les champs en pleine largeur */
+      .profile-edit-form .col-md-6,
+      .profile-edit-form .col-md-8,
+      .profile-edit-form .col-lg-7,
+      .profile-edit-form .col-12 {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+        margin-bottom: 1rem !important;
+        padding: 0 !important;
+      }
+      
+      /* Labels et inputs optimisés */
+      .profile-edit-form .form-label {
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
+        margin-bottom: 0.5rem !important;
+      }
+      
+      .profile-edit-form .input-group-text {
+        font-size: 0.85rem !important;
+        padding: 0.75rem 0.5rem !important;
+      }
+      
+      .profile-edit-form .form-control {
+        font-size: 0.9rem !important;
+        padding: 0.75rem !important;
+      }
+      
+      /* Titres de section plus compacts */
+      .profile-edit-form h5 {
+        font-size: 1rem !important;
+        margin-bottom: 0.75rem !important;
+        margin-top: 1.5rem !important;
+      }
+      
+      /* Boutons optimisés pour mobile */
+      .profile-edit-form .btn {
+        padding: 0.75rem 1rem !important;
+        font-size: 0.9rem !important;
+        width: 100% !important;
+        margin-bottom: 0.5rem !important;
+      }        .profile-edit-form .btn-primary {
+          background: var(--secondary-color) !important;
+          border-color: var(--secondary-color) !important;
+          color: white !important;
+        }
+        
+        .profile-edit-form .btn-primary:hover {
+          background: #b8904f !important;
+          border-color: #b8904f !important;
+          color: white !important;
+        }
+        /* Espacement optimisé */
+      .profile-edit-form .mb-3 {
+        margin-bottom: 1rem !important;
+      }
+    }
+
+    /* Bouton Menu du Formulaire de Profil */
+    .profile-menu-btn {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background-color: var(--secondary-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 15px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 1050;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .profile-menu-btn:hover {
+      background-color: #b8904f;
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .profile-menu-btn i {
+      font-size: 1.1rem;
+    }
+
+    /* Affichage du bouton en mode responsive */
+    @media (max-width: 991.98px) {
+      .profile-menu-btn {
+        display: flex !important;
+      }
+      
+      .card {
+        position: relative;
+      }
     }
 
   </style>
@@ -984,11 +1294,13 @@
         <a href="#" class="text-white text-decoration-none" id="editProfileBtn" data-active="false">
           <i class="bi bi-person-gear"></i>
           <span>Modifier Profil</span>
-        </a>
-        <a href="{% url 'accounts:logout' %}" class="text-white text-decoration-none">
-          <i class="bi bi-box-arrow-right"></i>
-          <span>Déconnexion</span>
-        </a>
+        </a>        <form method="post" action="{% url 'accounts:logout' %}" style="display: inline;">
+          {% csrf_token %}
+          <button type="submit" class="text-white text-decoration-none bg-transparent border-0 w-100 text-start d-flex align-items-center" style="background: none;">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Déconnexion</span>
+          </button>
+        </form>
       </nav>
     </aside>
 
@@ -1002,12 +1314,15 @@
       {% block content %}{% endblock %}
     </main>
   </div>
-
   <!-- Profile Edit Form (Hidden by default) -->
   <div class="profile-edit-form" id="profileEditForm" style="display: none; position: fixed; top: 0; right: 0; bottom: 0; width: calc(100% - var(--sidebar-width)); background-color: #f8f9fa; z-index: 1050; padding: 1rem; overflow-y: auto; overflow-x: hidden; box-shadow: -5px 0 15px rgba(0,0,0,0.1);">
+    <!-- Bouton Menu pour mobile/tablette uniquement -->
+    <button id="profileSidebarToggle" class="profile-menu-btn d-lg-none">
+      <i class="bi bi-list"></i> Menu
+    </button>
+    
     <div class="container-fluid py-2">
-      <div class="row justify-content-center">
-        <div class="col-lg-11 col-xl-10">
+      <div class="row justify-content-center">        <div class="col-lg-11 col-xl-10">
           <div class="card shadow-lg border-0 rounded-3">
             <div class="card-header bg-white text-center py-4 border-bottom">
               <div class="d-flex flex-column align-items-center justify-content-center">
@@ -1092,20 +1407,252 @@
                     <div class="input-group input-group-lg">
                       <span class="input-group-text"><i class="bi bi-globe"></i></span>
                       <select class="form-select" id="residence_country" name="residence_country">
-                        {% for country_code, country_name in settings.COUNTRIES %}
-                          <option value="{{ country_code }}" {% if user.residence_country == country_code %}selected{% endif %}>{{ country_name }}</option>
-                        {% empty %}
-                          <option value="MA" {% if user.residence_country == 'MA' %}selected{% endif %}>Maroc</option>
-                          <option value="FR" {% if user.residence_country == 'FR' %}selected{% endif %}>France</option>
-                          <option value="ES" {% if user.residence_country == 'ES' %}selected{% endif %}>Espagne</option>
-                          <option value="BE" {% if user.residence_country == 'BE' %}selected{% endif %}>Belgique</option>
-                          <option value="CA" {% if user.residence_country == 'CA' %}selected{% endif %}>Canada</option>
-                          <option value="IT" {% if user.residence_country == 'IT' %}selected{% endif %}>Italie</option>
-                          <option value="DE" {% if user.residence_country == 'DE' %}selected{% endif %}>Allemagne</option>
-                          <option value="NL" {% if user.residence_country == 'NL' %}selected{% endif %}>Pays-Bas</option>
-                          <option value="GB" {% if user.residence_country == 'GB' %}selected{% endif %}>Royaume-Uni</option>
-                          <option value="US" {% if user.residence_country == 'US' %}selected{% endif %}>États-Unis</option>
-                        {% endfor %}
+                        <option value="AF">Afghanistan</option>
+                        <option value="ZA">Afrique du Sud</option>
+                        <option value="AL">Albanie</option>
+                        <option value="DZ">Algérie</option>
+                        <option value="DE">Allemagne</option>
+                        <option value="AD">Andorre</option>
+                        <option value="AO">Angola</option>
+                        <option value="AI">Anguilla</option>
+                        <option value="AQ">Antarctique</option>
+                        <option value="AG">Antigua-et-Barbuda</option>
+                        <option value="SA">Arabie saoudite</option>
+                        <option value="AR">Argentine</option>
+                        <option value="AM">Arménie</option>
+                        <option value="AW">Aruba</option>
+                        <option value="AU">Australie</option>
+                        <option value="AT">Autriche</option>
+                        <option value="AZ">Azerbaïdjan</option>
+                        <option value="BS">Bahamas</option>
+                        <option value="BH">Bahreïn</option>
+                        <option value="BD">Bangladesh</option>
+                        <option value="BB">Barbade</option>
+                        <option value="BY">Biélorussie</option>
+                        <option value="BE">Belgique</option>
+                        <option value="BZ">Belize</option>
+                        <option value="BJ">Bénin</option>
+                        <option value="BM">Bermudes</option>
+                        <option value="BT">Bhoutan</option>
+                        <option value="BO">Bolivie</option>
+                        <option value="BA">Bosnie-Herzégovine</option>
+                        <option value="BW">Botswana</option>
+                        <option value="BR">Brésil</option>
+                        <option value="BN">Brunei</option>
+                        <option value="BG">Bulgarie</option>
+                        <option value="BF">Burkina Faso</option>
+                        <option value="BI">Burundi</option>
+                        <option value="KH">Cambodge</option>
+                        <option value="CM">Cameroun</option>
+                        <option value="CA">Canada</option>
+                        <option value="CV">Cap-Vert</option>
+                        <option value="CF">République centrafricaine</option>
+                        <option value="CL">Chili</option>
+                        <option value="CN">Chine</option>
+                        <option value="CY">Chypre</option>
+                        <option value="CO">Colombie</option>
+                        <option value="KM">Comores</option>
+                        <option value="CG">Congo</option>
+                        <option value="CD">République démocratique du Congo</option>
+                        <option value="CK">Îles Cook</option>
+                        <option value="KR">Corée du Sud</option>
+                        <option value="KP">Corée du Nord</option>
+                        <option value="CR">Costa Rica</option>
+                        <option value="CI">Côte d'Ivoire</option>
+                        <option value="HR">Croatie</option>
+                        <option value="CU">Cuba</option>
+                        <option value="CW">Curaçao</option>
+                        <option value="DK">Danemark</option>
+                        <option value="DJ">Djibouti</option>
+                        <option value="DM">Dominique</option>
+                        <option value="EG">Égypte</option>
+                        <option value="AE">Émirats arabes unis</option>
+                        <option value="EC">Équateur</option>
+                        <option value="ER">Érythrée</option>
+                        <option value="ES">Espagne</option>
+                        <option value="EE">Estonie</option>
+                        <option value="US">États-Unis</option>
+                        <option value="ET">Éthiopie</option>
+                        <option value="FJ">Fidji</option>
+                        <option value="FI">Finlande</option>
+                        <option value="FR">France</option>
+                        <option value="GA">Gabon</option>
+                        <option value="GM">Gambie</option>
+                        <option value="GE">Géorgie</option>
+                        <option value="GS">Géorgie du Sud-et-les Îles Sandwich du Sud</option>
+                        <option value="GH">Ghana</option>
+                        <option value="GI">Gibraltar</option>
+                        <option value="GR">Grèce</option>
+                        <option value="GD">Grenade</option>
+                        <option value="GL">Groenland</option>
+                        <option value="GP">Guadeloupe</option>
+                        <option value="GU">Guam</option>
+                        <option value="GT">Guatemala</option>
+                        <option value="GG">Guernesey</option>
+                        <option value="GN">Guinée</option>
+                        <option value="GQ">Guinée équatoriale</option>
+                        <option value="GW">Guinée-Bissau</option>
+                        <option value="GY">Guyana</option>
+                        <option value="GF">Guyane française</option>
+                        <option value="HT">Haïti</option>
+                        <option value="HN">Honduras</option>
+                        <option value="HU">Hongrie</option>
+                        <option value="BV">Île Bouvet</option>
+                        <option value="IM">Île de Man</option>
+                        <option value="CX">Île Christmas</option>
+                        <option value="NF">Île Norfolk</option>
+                        <option value="AX">Îles Åland</option>
+                        <option value="KY">Îles Caïmans</option>
+                        <option value="CC">Îles Cocos</option>
+                        <option value="FO">Îles Féroé</option>
+                        <option value="HM">Îles Heard-et-MacDonald</option>
+                        <option value="FK">Îles Malouines</option>
+                        <option value="MP">Îles Mariannes du Nord</option>
+                        <option value="MH">Îles Marshall</option>
+                        <option value="UM">Îles mineures éloignées des États-Unis</option>
+                        <option value="PN">Îles Pitcairn</option>
+                        <option value="SB">Îles Salomon</option>
+                        <option value="TC">Îles Turques-et-Caïques</option>
+                        <option value="VI">Îles Vierges américaines</option>
+                        <option value="VG">Îles Vierges britanniques</option>
+                        <option value="IN">Inde</option>
+                        <option value="ID">Indonésie</option>
+                        <option value="IQ">Irak</option>
+                        <option value="IR">Iran</option>
+                        <option value="IE">Irlande</option>
+                        <option value="IS">Islande</option>
+                        <option value="IL">Israël</option>
+                        <option value="IT">Italie</option>
+                        <option value="JM">Jamaïque</option>
+                        <option value="JP">Japon</option>
+                        <option value="JE">Jersey</option>
+                        <option value="JO">Jordanie</option>
+                        <option value="KZ">Kazakhstan</option>
+                        <option value="KE">Kenya</option>
+                        <option value="KG">Kirghizistan</option>
+                        <option value="KI">Kiribati</option>
+                        <option value="KW">Koweït</option>
+                        <option value="LA">Laos</option>
+                        <option value="LS">Lesotho</option>
+                        <option value="LV">Lettonie</option>
+                        <option value="LB">Liban</option>
+                        <option value="LR">Libéria</option>
+                        <option value="LY">Libye</option>
+                        <option value="LI">Liechtenstein</option>
+                        <option value="LT">Lituanie</option>
+                        <option value="LU">Luxembourg</option>
+                        <option value="MK">Macédoine du Nord</option>
+                        <option value="MG">Madagascar</option>
+                        <option value="MY">Malaisie</option>
+                        <option value="MW">Malawi</option>
+                        <option value="MV">Maldives</option>
+                        <option value="ML">Mali</option>
+                        <option value="MT">Malte</option>
+                        <option value="MA">Maroc</option>
+                        <option value="MQ">Martinique</option>
+                        <option value="MU">Maurice</option>
+                        <option value="MR">Mauritanie</option>
+                        <option value="YT">Mayotte</option>
+                        <option value="MX">Mexique</option>
+                        <option value="FM">Micronésie</option>
+                        <option value="MD">Moldavie</option>
+                        <option value="MC">Monaco</option>
+                        <option value="MN">Mongolie</option>
+                        <option value="ME">Monténégro</option>
+                        <option value="MS">Montserrat</option>
+                        <option value="MZ">Mozambique</option>
+                        <option value="MM">Myanmar</option>
+                        <option value="NA">Namibie</option>
+                        <option value="NR">Nauru</option>
+                        <option value="NP">Népal</option>
+                        <option value="NI">Nicaragua</option>
+                        <option value="NE">Niger</option>
+                        <option value="NG">Nigeria</option>
+                        <option value="NU">Niue</option>
+                        <option value="NO">Norvège</option>
+                        <option value="NC">Nouvelle-Calédonie</option>
+                        <option value="NZ">Nouvelle-Zélande</option>
+                        <option value="OM">Oman</option>
+                        <option value="UG">Ouganda</option>
+                        <option value="UZ">Ouzbékistan</option>
+                        <option value="PK">Pakistan</option>
+                        <option value="PW">Palaos</option>
+                        <option value="PS">Palestine</option>
+                        <option value="PA">Panama</option>
+                        <option value="PG">Papouasie-Nouvelle-Guinée</option>
+                        <option value="PY">Paraguay</option>
+                        <option value="NL">Pays-Bas</option>
+                        <option value="PE">Pérou</option>
+                        <option value="PH">Philippines</option>
+                        <option value="PL">Pologne</option>
+                        <option value="PF">Polynésie française</option>
+                        <option value="PR">Porto Rico</option>
+                        <option value="PT">Portugal</option>
+                        <option value="QA">Qatar</option>
+                        <option value="HK">R.A.S. chinoise de Hong Kong</option>
+                        <option value="MO">R.A.S. chinoise de Macao</option>
+                        <option value="RE">Réunion</option>
+                        <option value="RO">Roumanie</option>
+                        <option value="GB">Royaume-Uni</option>
+                        <option value="RU">Russie</option>
+                        <option value="RW">Rwanda</option>
+                        <option value="EH">Sahara occidental</option>
+                        <option value="BL">Saint-Barthélemy</option>
+                        <option value="KN">Saint-Kitts-et-Nevis</option>
+                        <option value="SM">Saint-Marin</option>
+                        <option value="MF">Saint-Martin</option>
+                        <option value="PM">Saint-Pierre-et-Miquelon</option>
+                        <option value="VC">Saint-Vincent-et-les-Grenadines</option>
+                        <option value="SH">Sainte-Hélène</option>
+                        <option value="LC">Sainte-Lucie</option>
+                        <option value="WS">Samoa</option>
+                        <option value="AS">Samoa américaines</option>
+                        <option value="ST">Sao Tomé-et-Principe</option>
+                        <option value="SN">Sénégal</option>
+                        <option value="RS">Serbie</option>
+                        <option value="SC">Seychelles</option>
+                        <option value="SL">Sierra Leone</option>
+                        <option value="SG">Singapour</option>
+                        <option value="SX">Saint-Martin (partie néerlandaise)</option>
+                        <option value="SK">Slovaquie</option>
+                        <option value="SI">Slovénie</option>
+                        <option value="SO">Somalie</option>
+                        <option value="SD">Soudan</option>
+                        <option value="SS">Soudan du Sud</option>
+                        <option value="LK">Sri Lanka</option>
+                        <option value="SE">Suède</option>
+                        <option value="CH">Suisse</option>
+                        <option value="SR">Suriname</option>
+                        <option value="SJ">Svalbard et Île Jan Mayen</option>
+                        <option value="SZ">Swaziland</option>
+                        <option value="SY">Syrie</option>
+                        <option value="TJ">Tadjikistan</option>
+                        <option value="TW">Taïwan</option>
+                        <option value="TZ">Tanzanie</option>
+                        <option value="TD">Tchad</option>
+                        <option value="CZ">République tchèque</option>
+                        <option value="TF">Terres australes françaises</option>
+                        <option value="IO">Territoire britannique de l'océan Indien</option>
+                        <option value="TH">Thaïlande</option>
+                        <option value="TL">Timor oriental</option>
+                        <option value="TG">Togo</option>
+                        <option value="TK">Tokelau</option>
+                        <option value="TO">Tonga</option>
+                        <option value="TT">Trinité-et-Tobago</option>
+                        <option value="TN">Tunisie</option>
+                        <option value="TM">Turkménistan</option>
+                        <option value="TR">Turquie</option>
+                        <option value="TV">Tuvalu</option>
+                        <option value="UA">Ukraine</option>
+                        <option value="UY">Uruguay</option>
+                        <option value="VU">Vanuatu</option>
+                        <option value="VA">Vatican</option>
+                        <option value="VE">Venezuela</option>
+                        <option value="VN">Vietnam</option>
+                        <option value="WF">Wallis-et-Futuna</option>
+                        <option value="YE">Yémen</option>
+                        <option value="ZM">Zambie</option>
+                        <option value="ZW">Zimbabwe</option>
                       </select>
                     </div>
                   </div>
@@ -1143,26 +1690,28 @@
   </div>
 
   <!-- Vendor JS Files -->
-  <script src="../../static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-  <script src="../../static/vendor/aos/aos.js"></script>
-  <script src="../../static/vendor/glightbox/js/glightbox.min.js"></script>
-  <script src="../../static/vendor/swiper/swiper-bundle.min.js"></script>
+  <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+  <script src="{% static 'vendor/aos/aos.js' %}"></script>
+  <script src="{% static 'vendor/glightbox/js/glightbox.min.js' %}"></script>
+  <script src="{% static 'vendor/swiper/swiper-bundle.min.js' %}"></script>
 
   <!-- Main JS File -->
-  <script src="../../static/js/main.js"></script>
+  <script src="{% static 'js/main.js' %}"></script>
   
   <script>
     // Function to redirect to the appropriate service request page
-    function redirectToCreateRequest(serviceType) {
-      // Map service types to URLs with correct paths including the /requests/ prefix
+    function redirectToCreateRequest(serviceType) {      // Map service types to URLs with correct paths including the /requests/ prefix
       const serviceUrls = {
         'admin': '/requests/client/create/administrative/',
         'administrative': '/requests/client/create/administrative/',
+        'administratif': '/requests/client/create/administrative/',
+        'services administratifs': '/requests/client/create/administrative/',
         'tourisme': '/requests/client/create/tourism/',
         'tourism': '/requests/client/create/tourism/',
         'immobilier': '/requests/client/create/real_estate/',
         'real_estate': '/requests/client/create/real_estate/',
         'fiscal': '/requests/client/create/fiscal/',
+        'fiscalité': '/requests/client/create/fiscal/',
         'tax': '/requests/client/create/fiscal/',
         'investissement': '/requests/client/create/investment/',
         'investment': '/requests/client/create/investment/',
@@ -1183,14 +1732,14 @@
         sidebarToggle.addEventListener('click', function() {
           sidebar.classList.toggle('active');
         });
-      }
-      
-      // Close sidebar when clicking outside on mobile
+      }        // Close sidebar when clicking outside on mobile
       document.addEventListener('click', function(event) {
         const isClickInsideSidebar = sidebar.contains(event.target);
         const isClickInsideToggle = sidebarToggle && sidebarToggle.contains(event.target);
+        const profileMenuToggle = document.getElementById('profileSidebarToggle');
+        const isClickInsideProfileToggle = profileMenuToggle && profileMenuToggle.contains(event.target);
         
-        if (!isClickInsideSidebar && !isClickInsideToggle && window.innerWidth <= 992 && sidebar.classList.contains('active')) {
+        if (!isClickInsideSidebar && !isClickInsideToggle && !isClickInsideProfileToggle && window.innerWidth <= 992 && sidebar.classList.contains('active')) {
           sidebar.classList.remove('active');
         }
       });
@@ -1198,8 +1747,7 @@
     
     // Profile edit functionality
     document.addEventListener('DOMContentLoaded', function() {
-      const editProfileBtn = document.getElementById('editProfileBtn');
-      const profileEditForm = document.getElementById('profileEditForm');
+      const editProfileBtn = document.getElementById('editProfileBtn');      const profileEditForm = document.getElementById('profileEditForm');
       const closeProfileForm = document.getElementById('closeProfileForm');
       const userProfileForm = document.getElementById('userProfileForm');
       const successAlert = document.getElementById('successAlert');
@@ -1375,7 +1923,17 @@
             alert('Erreur de connexion: ' + error.message);
           });
           
-          this.classList.remove('was-validated');
+          this.classList.remove('was-validated');        });
+      }
+      
+      // Fonctionnalité du bouton menu du formulaire de profil
+      const profileSidebarToggle = document.getElementById('profileSidebarToggle');
+      if (profileSidebarToggle) {
+        profileSidebarToggle.addEventListener('click', function() {
+          const sidebar = document.querySelector('.sidebar');
+          if (sidebar) {
+            sidebar.classList.toggle('active');
+          }
         });
       }
       

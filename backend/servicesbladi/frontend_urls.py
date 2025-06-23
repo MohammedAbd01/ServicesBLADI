@@ -22,14 +22,15 @@ from resources.client_views import client_resources_view
 
 # Import views from the custom_requests app for frontend URLs
 from custom_requests.dashboard_views import client_dashboard_view, expert_dashboard_view, admin_dashboard_view
-from custom_requests.views import documents_view, client_requests_view, client_appointments_view, expert_requests_view, expert_appointments_view
+from custom_requests.views import documents_view, client_requests_view, client_appointments_view, expert_requests_view, expert_appointments_view, expert_create_appointment_view
 from custom_requests.message_views import client_messages_view, expert_messages_view, expert_send_message
 from custom_requests.expert_views import expert_documents_view, expert_appointments_view as expert_appointments_view_new, expert_messages_view as expert_messages_view_new, expert_resources_view, expert_requests_view, expert_request_detail, expert_upload_document, expert_update_request_status, expert_schedule_appointment, expert_update_appointment, expert_take_request
+from custom_requests.expert_appointment_actions import expert_appointment_detail, expert_confirm_appointment, expert_cancel_appointment, expert_complete_appointment
 
 # Import admin views for frontend URLs
 from custom_requests.admin_views import (
     admin_requests_view, admin_documents_view, admin_appointments_view,
-    admin_resources_view, admin_users_view, admin_add_user,
+    admin_resources_view, admin_users_view, admin_add_user, admin_add_expert_view,
     admin_toggle_user_status, admin_delete_user, admin_edit_user,
     admin_verify_document, admin_reject_document, admin_delete_document,
     admin_complete_appointment, admin_cancel_appointment, admin_reschedule_appointment,
@@ -50,14 +51,14 @@ from accounts.models import Utilisateur
 
 urlpatterns = [
     # Main pages
-    path('', TemplateView.as_view(template_name='index.html'), name='home'),
-    path('about/', TemplateView.as_view(template_name='about-us.html'), name='about'),
+    path('', TemplateView.as_view(template_name='general/index.html'), name='home'),
+    path('about/', TemplateView.as_view(template_name='general/about-us.html'), name='about'),
     path('contact/', contact_view, name='contact'),
     path('formulaire/', TemplateView.as_view(template_name='formulaire.html'), name='formulaire'),
     
     # Authentication related pages - these are handled by accounts.urls but redirected for template compatibility
-    path('login/', TemplateView.as_view(template_name='login.html'), name='login_page'),
-    path('register/', TemplateView.as_view(template_name='register.html'), name='register_page'),
+    path('login/', TemplateView.as_view(template_name='general/login.html'), name='login_page'),
+    path('register/', TemplateView.as_view(template_name='general/register.html'), name='register_page'),
     
     # Service pages linked to actual views in services app
     path('tourisme/', tourism_services_view, name='tourisme'),
@@ -78,17 +79,20 @@ urlpatterns = [
     # Expert dashboard
     path('expert/dashboard/', expert_dashboard_view, name='expert_dashboard'),
     path('expert/demandes/', expert_requests_view, name='expert_demandes'),
-    path('expert/demandes/<int:request_id>/', expert_request_detail, name='expert_request_detail'),
-    path('expert/demandes/take/<int:request_id>/', expert_take_request, name='expert_take_request'),
+    path('expert/demandes/<int:request_id>/', expert_request_detail, name='expert_request_detail'),    path('expert/demandes/take/<int:request_id>/', expert_take_request, name='expert_take_request'),
     path('expert/documents/', documents_view, name='expert_documents'),
     path('expert/messages/', expert_messages_view, name='expert_messages'),
     path('expert/rendezvous/', expert_appointments_view, name='expert_rendezvous'),
+    path('expert/rendezvous/<int:appointment_id>/', expert_appointment_detail, name='expert_appointment_detail'),
+    path('expert/rendezvous/confirm/<int:appointment_id>/', expert_confirm_appointment, name='expert_confirm_appointment'),
+    path('expert/rendezvous/cancel/<int:appointment_id>/', expert_cancel_appointment, name='expert_cancel_appointment'),
+    path('expert/rendezvous/complete/<int:appointment_id>/', expert_complete_appointment, name='expert_complete_appointment'),
     path('expert/ressources/', expert_resources_view, name='expert_ressources'),
     path('expert/send-message/<int:client_id>/', expert_send_message, name='expert_send_message'),
-    path('expert/upload-document/', expert_upload_document, name='expert_upload_document'),
-    path('expert/update-request-status/<int:request_id>/', expert_update_request_status, name='expert_update_request_status'),
+    path('expert/upload-document/', expert_upload_document, name='expert_upload_document'),    path('expert/update-request-status/<int:request_id>/', expert_update_request_status, name='expert_update_request_status'),
     path('expert/schedule-appointment/', expert_schedule_appointment, name='expert_schedule_appointment'),
     path('expert/update-appointment/', expert_update_appointment, name='expert_update_appointment'),
+    path('expert/add-appointment/', expert_create_appointment_view, name='expert_add_appointment'),
     
     # Admin dashboard - all using dynamic views
     path('admin/dashboard/', admin_dashboard_view, name='admin_dashboard'),
@@ -96,10 +100,10 @@ urlpatterns = [
     path('admin/demandes/<int:request_id>/', admin_request_detail, name='admin_request_detail'),
     path('admin/documents/', admin_documents_view, name='admin_documents'),
     path('admin/rendezvous/', admin_appointments_view, name='admin_rendezvous'),
-    path('admin/ressources/', admin_resources_view, name='admin_ressources'),
-    path('admin/users/', admin_users_view, name='admin_users'),
+    path('admin/ressources/', admin_resources_view, name='admin_ressources'),    path('admin/users/', admin_users_view, name='admin_users'),
     path('admin/users/<int:user_id>/', admin_user_detail, name='admin_user_detail'),
     path('admin/users/add/', admin_add_user, name='admin_add_user'),
+    path('admin/experts/add/', admin_add_expert_view, name='admin_add_expert'),
     path('admin/users/bulk-toggle-status/', admin_bulk_toggle_users_status, name='admin_bulk_toggle_users_status'),
     path('admin/users/bulk-delete/', admin_bulk_delete_users, name='admin_bulk_delete_users'),
     path('admin/users/<int:user_id>/toggle-status/', admin_toggle_user_status, name='admin_toggle_user_status'),

@@ -88,10 +88,20 @@ class RendezVous(models.Model):
 
 class Document(models.Model):
     """Model for documents attached to service requests"""
+    STATUS_CHOICES = (
+        ('pending', _('Pending')),
+        ('verified', _('Verified')),
+        ('rejected', _('Rejected')),
+    )
+    
     service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE, related_name='documents', null=True, blank=True)
     rendez_vous = models.ForeignKey(RendezVous, on_delete=models.CASCADE, related_name='documents', null=True, blank=True)
     uploaded_by = models.ForeignKey(Utilisateur, on_delete=models.CASCADE, related_name='uploaded_documents')
     type = models.CharField(_('document type'), max_length=20, choices=DOCUMENT_TYPES, default='other')
+    status = models.CharField(_('status'), max_length=20, choices=STATUS_CHOICES, default='pending')
+    verified_by = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_documents')
+    verified_at = models.DateTimeField(_('verified at'), null=True, blank=True)
+    rejection_reason = models.TextField(_('rejection reason'), blank=True)
     is_official = models.BooleanField(_('is official document'), default=False)
     reference_number = models.CharField(_('reference number'), max_length=100, blank=True)
     name = models.CharField(_('name'), max_length=255)
@@ -126,9 +136,11 @@ class Message(models.Model):
 
 class Notification(models.Model):
     """Notification model"""
+    
     NOTIFICATION_TYPES = (
         ('request_update', _('Request Update')),
         ('appointment', _('Appointment')),
+        ('appointment_update', _('Appointment Update')),
         ('message', _('Message')),
         ('document', _('Document')),
         ('system', _('System')),
@@ -148,4 +160,22 @@ class Notification(models.Model):
         return f"{self.title} for {self.user.name} {self.user.first_name} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
     
     class Meta:
+        ordering = ['-created_at']
+
+class ContactMessage(models.Model):
+    """Model for contact form messages"""
+    name = models.CharField(_('name'), max_length=100)
+    email = models.EmailField(_('email'))
+    subject = models.CharField(_('subject'), max_length=200)
+    message = models.TextField(_('message'))
+    created_at = models.DateTimeField(_('created at'), auto_now_add=True)
+    is_read = models.BooleanField(_('is read'), default=False)
+    is_responded = models.BooleanField(_('is responded'), default=False)
+    
+    def __str__(self):
+        return f"{self.subject} - {self.name} ({self.email})"
+    
+    class Meta:
+        verbose_name = _('contact message')
+        verbose_name_plural = _('contact messages')
         ordering = ['-created_at']

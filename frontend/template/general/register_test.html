@@ -1,0 +1,70 @@
+{% extends 'general/base.html' %}
+{% load static %}
+
+{% block title %}Test Registration{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Test Registration Form</h2>
+    
+    {% if messages %}
+    <div class="alert alert-info">
+        {% for message in messages %}
+            {{ message }}
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <form action="{% url 'accounts:register' %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="user_type" value="client">
+        
+        <div class="mb-3">
+            <label for="first_name">Prénom</label>
+            <input type="text" name="first_name" id="first_name" class="form-control" value="Test">
+        </div>
+        
+        <div class="mb-3">
+            <label for="last_name">Nom</label>
+            <input type="text" name="last_name" id="last_name" class="form-control" value="User">
+        </div>
+        
+        <div class="mb-3">
+            <label for="email">Email</label>
+            <input type="email" name="email" id="email" class="form-control" value="test@example.com">
+        </div>
+        
+        <div class="mb-3">
+            <label for="phone">Téléphone</label>
+            <input type="text" name="phone" id="phone" class="form-control" value="1234567890">
+        </div>
+        
+        <div class="mb-3">
+            <label for="password">Mot de passe</label>
+            <input type="password" name="password" id="password" class="form-control" value="testpass123">
+        </div>
+        
+        <div class="mb-3">
+            <label for="password_confirm">Confirmer mot de passe</label>
+            <input type="password" name="password_confirm" id="password_confirm" class="form-control" value="testpass123">
+        </div>
+        
+        <div class="mb-3">
+            <label for="residence_country">Pays</label>
+            <select name="residence_country" id="residence_country" class="form-control">
+                <option value="FR">France</option>
+            </select>
+        </div>
+        
+        <button type="submit" class="btn btn-primary">Test Submit</button>
+    </form>
+</div>
+
+{% block extra_js %}
+<script>
+window.DISABLE_CACHE_CONTROL = true;
+console.log('Test page loaded');
+</script>
+{% endblock %}
+
+{% endblock %}

@@ -1,6 +1,54 @@
 {% extends 'client/base.html' %}
 
 {% block title %}Rendez-vous - MRE{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Style pour les cartes de rendez-vous */
+  .rdv-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    border-left: 4px solid #C49A5A;
+  }
+  
+  .rdv-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .status-confirme {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+  }
+  
+  .status-en-attente {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+  }
+  
+  .status-annule {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+  
+  .status-termine {
+    background-color: rgba(108, 117, 125, 0.1);
+    color: #6c757d;
+  }
+</style>
+{% endblock %}
 {% block meta_description %}Gestion des rendez-vous client MRE{% endblock %}
 {% block meta_keywords %}MRE, rendez-vous, services{% endblock %}
 
@@ -47,29 +95,43 @@
       {% for appointment in appointments %}
         <div class="rdv-card p-3 mb-3">
           <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h5 class="mb-1">
+            <div class="w-75">
+              <div class="d-flex align-items-center mb-2">
                 {% if appointment.consultation_type == 'in_person' %}
-                  Consultation en personne
+                  <i class="bi bi-person-video3 text-primary me-2 fs-4"></i>
                 {% elif appointment.consultation_type == 'video' %}
-                  Consultation par vidéo
+                  <i class="bi bi-camera-video text-primary me-2 fs-4"></i>
                 {% elif appointment.consultation_type == 'phone' %}
-                  Consultation téléphonique
+                  <i class="bi bi-telephone text-primary me-2 fs-4"></i>
                 {% else %}
-                  {{ appointment.get_consultation_type_display }}
+                  <i class="bi bi-calendar-event text-primary me-2 fs-4"></i>
                 {% endif %}
-              </h5>
-              <p class="text-muted mb-0">
-                <i class="bi bi-calendar-event me-2"></i>{{ appointment.date_time|date:"d F Y - H:i" }}
-              </p>
-              <p class="text-muted mb-0">
-                <i class="bi bi-person me-2"></i>Expert: {{ appointment.expert.name }} {{ appointment.expert.first_name }}
-              </p>
-              {% if appointment.service_request %}
-                <p class="text-muted mb-0">
-                  <i class="bi bi-tag me-2"></i>Demande associée: {{ appointment.service_request.title }}
+                <h5 class="mb-0">
+                  {% if appointment.consultation_type == 'in_person' %}
+                    Consultation en personne
+                  {% elif appointment.consultation_type == 'video' %}
+                    Consultation par vidéo
+                  {% elif appointment.consultation_type == 'phone' %}
+                    Consultation téléphonique
+                  {% else %}
+                    {{ appointment.get_consultation_type_display }}
+                  {% endif %}
+                </h5>
+              </div>
+              
+              <div class="ms-4">
+                <p class="text-muted mb-1">
+                  <i class="bi bi-calendar-event me-2"></i>{{ appointment.date_time|date:"d F Y - H:i" }}
                 </p>
-              {% endif %}
+                <p class="text-muted mb-1">
+                  <i class="bi bi-person me-2"></i>Expert: {{ appointment.expert.name }} {{ appointment.expert.first_name }}
+                </p>
+                {% if appointment.service_request %}
+                  <p class="text-muted mb-1">
+                    <i class="bi bi-link-45deg me-2"></i>Demande: {{ appointment.service_request.title|truncatechars:40 }}
+                  </p>
+                {% endif %}
+              </div>
             </div>
             <div class="text-end">
               {% if appointment.status == 'scheduled' %}
@@ -84,33 +146,16 @@
                 <span class="status-badge">{{ appointment.get_status_display }}</span>
               {% endif %}
               
-              <div class="mt-2">
-                <a href="{% url 'custom_requests:appointment_detail' appointment.id %}" class="btn btn-sm btn-outline-primary me-2">
+              <div class="mt-3">
+                <a href="{% url 'custom_requests:appointment_detail' appointment.id %}" class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="tooltip" title="Voir les détails">
                   <i class="bi bi-eye"></i>
                 </a>
                 {% if appointment.status == 'scheduled' or appointment.status == 'confirmed' %}
-                  <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal{{ appointment.id }}">
+                  <button class="btn btn-sm btn-outline-danger cancel-appointment-btn" 
+                          data-appointment-id="{{ appointment.id }}" 
+                          title="Annuler le rendez-vous">
                     <i class="bi bi-x-lg"></i>
                   </button>
-                  
-                  <!-- Modal d'annulation -->
-                  <div class="modal fade" id="cancelModal{{ appointment.id }}" tabindex="-1">
-                    <div class="modal-dialog">
-                      <div class="modal-content">
-                        <div class="modal-header">
-                          <h5 class="modal-title">Confirmer l'annulation</h5>
-                          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                          <p>Êtes-vous sûr de vouloir annuler ce rendez-vous ?</p>
-                        </div>
-                        <div class="modal-footer">
-                          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Non, garder</button>
-                          <a href="{% url 'custom_requests:cancel_appointment' appointment.id %}" class="btn btn-danger">Oui, annuler</a>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 {% endif %}
               </div>
             </div>
@@ -186,4 +231,41 @@
       </div>
     </div>
   </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Initialisation des tooltips Bootstrap
+  document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Gestion du clic sur le bouton d'annulation
+    document.querySelectorAll('.cancel-appointment-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const appointmentId = this.getAttribute('data-appointment-id');
+        if (confirm('Êtes-vous sûr de vouloir annuler ce rendez-vous ?')) {
+          // Créer un formulaire dynamiquement
+          const form = document.createElement('form');
+          form.method = 'post';
+          form.action = `/requests/appointments/cancel/${appointmentId}/`;
+          
+          // Ajouter le jeton CSRF
+          const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+          const csrfInput = document.createElement('input');
+          csrfInput.type = 'hidden';
+          csrfInput.name = 'csrfmiddlewaretoken';
+          csrfInput.value = csrfToken;
+          form.appendChild(csrfInput);
+          
+          // Ajouter le formulaire à la page et le soumettre
+          document.body.appendChild(form);
+          form.submit();
+        }
+      });
+    });
+  });
+</script>
 {% endblock %}

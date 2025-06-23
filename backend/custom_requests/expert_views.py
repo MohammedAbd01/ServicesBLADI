@@ -7,6 +7,7 @@ from django.contrib import messages
 
 from accounts.models import Utilisateur, Expert, Client
 from custom_requests.models import ServiceRequest, Document, RendezVous, Message, Notification
+from services.email_notifications import EmailNotificationService
 
 @login_required
 def expert_documents_view(request):
@@ -39,21 +40,23 @@ def expert_appointments_view(request):
     """View function for expert appointments."""
     if request.user.account_type.lower() != 'expert':
         return redirect('home')
-
+        
     try:
         expert = Expert.objects.get(user=request.user)
-        
         # Get appointments for this expert
         appointments = RendezVous.objects.filter(
             expert=expert.user
         ).order_by('date_time')
         
+        # Get all clients for the form dropdown
+        clients = Client.objects.all()
+        
         context = {
             'appointments': appointments,
-            'expert': expert
-        }
+            'expert': expert,
+            'clients': clients        }
         
-        return render(request, 'expert/appointments_new.html', context)
+        return render(request, 'expert/rendezvous.html', context)
     
     except Expert.DoesNotExist:
         return redirect('home')
@@ -100,6 +103,63 @@ def expert_messages_view(request):
             'expert': expert
         }
         
+        return render(request, 'expert/messages.html', context)
+    
+    except Expert.DoesNotExist:
+        return redirect('home')
+
+@login_required
+def expert_appointment_detail(request, appointment_id):
+    """View function for expert appointment detail."""
+    if request.user.account_type.lower() != 'expert':
+        return redirect('home')
+
+    try:
+        expert = Expert.objects.get(user=request.user)
+        
+        # Get appointment details
+        appointment = get_object_or_404(RendezVous, id=appointment_id, expert=expert.user)
+        
+        # Get documents related to this appointment
+        documents = Document.objects.filter(rendez_vous=appointment).order_by('-upload_date')
+        
+        context = {
+            'appointment': appointment,
+            'documents': documents,
+            'expert': expert
+        }
+        
+        return render(request, 'expert/appointment_detail.html', context)
+    
+    except Expert.DoesNotExist:
+        return redirect('home')
+
+@login_required
+def expert_appointment_detail(request, appointment_id):
+    """View function for expert appointment detail."""
+    if request.user.account_type.lower() != 'expert':
+        return redirect('home')
+
+    try:
+        expert = Expert.objects.get(user=request.user)
+        
+        # Get appointment details
+        appointment = get_object_or_404(RendezVous, id=appointment_id, expert=expert.user)
+        
+        # Get documents related to this appointment
+        documents = Document.objects.filter(rendez_vous=appointment).order_by('-upload_date')
+        
+        context = {
+            'appointment': appointment,
+            'documents': documents,
+            'expert': expert
+        }
+        
+        return render(request, 'expert/appointment_detail.html', context)
+    
+    except Expert.DoesNotExist:
+        return redirect('home')
+        
         return render(request, 'expert/messages_new.html', context)
     
     except Expert.DoesNotExist:
@@ -139,75 +199,71 @@ def expert_requests_view(request):
 @login_required
 def expert_resources_view(request):
     """View function for expert resources."""
+    print(f"=== EXPERT RESOURCES VIEW DEBUG ===")
+    print(f"User: {request.user}")
+    print(f"Is authenticated: {request.user.is_authenticated}")
+    print(f"Account type: {getattr(request.user, 'account_type', 'No account_type')}")
+    
     if request.user.account_type.lower() not in ['expert', 'admin']:
+        print(f"Access denied - redirecting to home")
         return redirect('home')
 
     try:
         if request.user.account_type.lower() == 'expert':
             expert = Expert.objects.get(user=request.user)
+            print(f"Expert found: {expert}")
         else:
             expert = None
+            print(f"Admin user - no expert profile needed")
         
         # Import here to avoid circular import
         from resources.models import Resource, ResourceFile, ResourceLink
         
-        # Debug info
-        print(f"====== EXPERT RESOURCES VIEW DEBUG ======")
+        # Get filter parameters
+        category = request.GET.get('category', '')
+        search_query = request.GET.get('search', '')
+        sort_by = request.GET.get('sort', 'recent')
         
-        # Get all resources
-        resources = Resource.objects.all().order_by('-id')
-        print(f"Total resources found: {resources.count()}")
+        # Base queryset
+        resources = Resource.objects.all()
         
-        # Debug: print each resource for diagnostics
-        for resource in resources:
-            print(f"Resource: {resource.id}: {resource.title} - {resource.category} - Active: {resource.is_active}")
+        # Apply filters
+        if category:
+            resources = resources.filter(category=category)
+            
+        if search_query:
+            resources = resources.filter(
+                Q(title__icontains=search_query) |
+                Q(description__icontains=search_query)
+            )
         
-        # Get popular resources (based on view_count)
-        popular_resources = Resource.objects.filter(is_active=True).order_by('-view_count')[:3]
-        print(f"Popular resources found: {popular_resources.count()}")
+        # Apply sorting
+        if sort_by == 'name':
+            resources = resources.order_by('title')
+        elif sort_by == 'popular':
+            resources = resources.order_by('-view_count')
+        else:  # default to recent
+            resources = resources.order_by('-created_at')
         
         # Get resource categories for filtering
         resource_categories = Resource.CATEGORIES
         
-        # DEBUGGING: Create a test resource if none exist
-        if resources.count() == 0:
-            print("No resources found. Creating a test resource...")
-            try:
-                test_resource = Resource.objects.create(
-                    title="Ressource de test",
-                    description="Ceci est une ressource de test créée automatiquement.",
-                    category="guide",
-                    available_languages="fr,en",
-                    is_active=True,
-                    view_count=10,
-                    created_by=request.user
-                )
-                print(f"Created test resource with ID: {test_resource.id}")
-                
-                # Refresh resources queryset
-                resources = Resource.objects.all().order_by('-id')
-                popular_resources = Resource.objects.filter(is_active=True).order_by('-view_count')[:3]
-            except Exception as e:
-                print(f"Error creating test resource: {str(e)}")
-        
         context = {
             'resources': resources,
-            'popular_resources': popular_resources,
             'expert': expert,
             'resource_categories': resource_categories,
-            'formats': Resource.FORMAT_TYPES
+            'formats': Resource.FORMAT_TYPES,
+            'current_category': category,
+            'current_search': search_query,
+            'current_sort': sort_by
         }
         
-        print("Rendering expert/ressources.html template")
         return render(request, 'expert/ressources.html', context)
     
     except Expert.DoesNotExist:
         messages.error(request, _('Expert profile not found.'))
         return redirect('home')
     except Exception as e:
-        print(f"Error in expert_resources_view: {str(e)}")
-        import traceback
-        traceback.print_exc()
         messages.error(request, _(f'An error occurred: {str(e)}'))
         return redirect('home')
 
@@ -219,27 +275,18 @@ def expert_request_detail(request, request_id):
     if request.user.account_type.lower() != 'expert':
         return redirect('home')
     
-    try:
-        # Get the service request
+    try:        # Get the service request
         service_request = get_object_or_404(ServiceRequest, id=request_id)
-        
-        # Print debug info
-        print(f"Found service request: {service_request.id} - {service_request.title}")
-        print(f"Expert assigned: {service_request.expert}")
-        print(f"Current user: {request.user}")
         
         # Get client information including phone number
         client = get_object_or_404(Utilisateur, id=service_request.client.id)
-        print(f"Client phone: {client.phone}")
         
         # Get service type information
         service = service_request.service
         service_type = service.service_type if hasattr(service, 'service_type') else None
-        print(f"Service type: {service_type}")
         
         # Get documents for this service request
         documents = Document.objects.filter(service_request=service_request).order_by('-upload_date')
-        print(f"Found {documents.count()} documents for this request")
         
         # Get messages related to this service request
         messages_list = Message.objects.filter(service_request=service_request).order_by('sent_at')
@@ -253,14 +300,12 @@ def expert_request_detail(request, request_id):
             'messages_list': messages_list,
             'appointments': appointments,
             'client': client,
-            'service_type': service_type
-        }
+            'service_type': service_type        }
         
         return render(request, 'expert/request_detail.html', context)
     
     except Exception as e:
         messages.error(request, f"Erreur: {str(e)}")
-        print(f"Error in expert_request_detail: {str(e)}")
         return redirect('expert_demandes')
 
 @login_required
@@ -370,14 +415,18 @@ def expert_upload_document(request):
             uploaded_by=request.user,
             file=file
         )
-        
-        # Create notification for client
+          # Create notification for client
         Notification.objects.create(
             user=service_request.client,
             type='document',
             title=_('Nouveau document'),
             content=_(f'Un nouveau document "{name}" a été téléchargé pour votre demande "{service_request.title}".'),
             related_service_request=service_request
+        )
+        
+        # Send email notification to client
+        EmailNotificationService.send_document_uploaded_notification(
+            request.user, service_request.client, document, service_request
         )
         
         messages.success(request, _('Document téléchargé avec succès.'))
@@ -432,8 +481,7 @@ def expert_update_request_status(request, request_id):
                 content=_('Statut mis à jour: ') + comment,
                 service_request=service_request
             )
-        
-        # Create notification for client
+          # Create notification for client
         status_display = dict(ServiceRequest.STATUS_CHOICES).get(new_status, new_status)
         Notification.objects.create(
             user=service_request.client,
@@ -441,6 +489,11 @@ def expert_update_request_status(request, request_id):
             title=_('Statut de demande mis à jour'),
             content=_(f'Le statut de votre demande "{service_request.title}" a été mis à jour à "{status_display}".'),
             related_service_request=service_request
+        )
+        
+        # Send email notification to client
+        EmailNotificationService.send_request_status_update(
+            service_request.client, request.user, service_request, new_status
         )
         
         messages.success(request, _('Statut mis à jour avec succès.'))
@@ -497,14 +550,21 @@ def expert_schedule_appointment(request):
             notes=notes,
             status='scheduled'
         )
-        
-        # Create notification for client
+          # Create notification for client
         Notification.objects.create(
             user=service_request.client,
             type='appointment',
             title=_('Nouveau rendez-vous'),
             content=_(f'Un rendez-vous a été planifié pour votre demande "{service_request.title}" le {date_time.strftime("%d/%m/%Y à %H:%M")}.'),
             related_service_request=service_request
+        )
+        
+        # Send email notification to client about new appointment
+        EmailNotificationService.send_appointment_notification(
+            client=service_request.client,
+            expert=request.user,
+            appointment=appointment,
+            notification_type='created'
         )
         
         messages.success(request, _('Rendez-vous planifié avec succès.'))
@@ -553,8 +613,7 @@ def expert_update_appointment(request):
         # Update the appointment status
         appointment.status = status
         appointment.save()
-        
-        # Create notification for client
+          # Create notification for client
         status_display = 'terminé' if status == 'completed' else 'annulé'
         Notification.objects.create(
             user=appointment.client,
@@ -563,6 +622,34 @@ def expert_update_appointment(request):
             content=_(f'Votre rendez-vous du {appointment.date_time.strftime("%d/%m/%Y à %H:%M")} a été marqué comme {status_display}.'),
             related_service_request=appointment.service_request
         )
+        
+        # Send email notification to client about appointment status update
+        if status == 'completed':
+            # Use document upload template for completed appointments since we don't have a specific completion template
+            EmailNotificationService.send_request_status_update(
+                client=appointment.client,
+                request_obj=appointment.service_request if appointment.service_request else None,
+                new_status='completed',
+                updated_by=request.user
+            )
+        elif status == 'cancelled':
+            # For cancelled appointments, we'll use the appointment notification with a custom message
+            context = {
+                'client_name': f"{appointment.client.name} {appointment.client.first_name}",
+                'expert_name': f"{request.user.name} {request.user.first_name}",
+                'appointment_date': appointment.date_time.strftime("%d/%m/%Y"),
+                'appointment_time': appointment.date_time.strftime("%H:%M"),
+                'cancellation_reason': 'Annulé par l\'expert',
+                'site_name': 'Services Bladi',
+                'site_url': 'https://servicesbladi.com'
+            }
+            
+            EmailNotificationService.send_templated_email(
+                'appointment_cancelled',
+                context,
+                _("Rendez-vous annulé"),
+                appointment.client.email
+            )
         
         messages.success(request, _(f'Rendez-vous marqué comme {status_display} avec succès.'))
         
@@ -614,8 +701,7 @@ def expert_take_request(request, request_id):
         )
         
         messages.success(request, _(f"Vous avez pris en charge la demande '{service_request.title}' avec succès."))
-        
-        # Redirect to the request detail page
+          # Redirect to the request detail page
         return redirect('expert_request_detail', request_id=request_id)
         
     except Expert.DoesNotExist:
@@ -623,7 +709,4 @@ def expert_take_request(request, request_id):
         return redirect('home')
     except Exception as e:
         messages.error(request, _(f"Une erreur s'est produite: {str(e)}"))
-        print(f"Error in expert_take_request: {str(e)}")
-        import traceback
-        traceback.print_exc()
         return redirect('expert_demandes')

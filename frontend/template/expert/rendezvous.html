@@ -60,6 +60,17 @@
 {% endblock %}
 
 {% block content %}
+<!-- Django Messages Display -->
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+      <i class="bi {% if message.tags == 'success' %}bi-check-circle{% elif message.tags == 'error' %}bi-exclamation-triangle{% elif message.tags == 'warning' %}bi-exclamation-circle{% else %}bi-info-circle{% endif %} me-2"></i>
+      {{ message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endfor %}
+{% endif %}
+
 <!-- Header -->
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h2>Gestion des Rendez-vous</h2>
@@ -78,62 +89,70 @@
 <!-- Filtres -->
 <div class="dashboard-card mb-4">
   <div class="card-body">
-    <div class="row g-3">
-      <div class="col-md-3">
-        <label class="form-label">Statut</label>
-        <select class="form-select" id="status-filter">
-          <option value="">Tous les statuts</option>
-          <option value="confirmed">Confirmé</option>
-          <option value="pending">En attente</option>
-          <option value="cancelled">Annulé</option>
-        </select>
+    <form method="get" action="{% url 'expert_rendezvous' %}" id="filter-form">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Statut</label>
+          <select class="form-select" name="status" id="status-filter">
+            <option value="">Tous les statuts</option>
+            <option value="scheduled" {% if current_status == 'scheduled' %}selected{% endif %}>Planifié</option>
+            <option value="confirmed" {% if current_status == 'confirmed' %}selected{% endif %}>Confirmé</option>
+            <option value="completed" {% if current_status == 'completed' %}selected{% endif %}>Terminé</option>
+            <option value="cancelled" {% if current_status == 'cancelled' %}selected{% endif %}>Annulé</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-control" name="date" id="date-filter" value="{{ current_date }}">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Recherche</label>
+          <input type="text" class="form-control" name="search" id="search-filter" placeholder="Rechercher..." value="{{ current_search }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">&nbsp;</label>
+          <div class="d-flex gap-1">
+            <button type="submit" class="btn btn-sm btn-primary">
+              <i class="bi bi-search me-1"></i>Filtrer
+            </button>
+            <a href="{% url 'expert_rendezvous' %}" class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-x-lg"></i>
+            </a>
+          </div>
+        </div>
       </div>
-      <div class="col-md-3">
-        <label class="form-label">Type</label>
-        <select class="form-select" id="type-filter">
-          <option value="">Tous les types</option>
-          <option value="video">Vidéoconférence</option>
-          <option value="phone">Téléphone</option>
-          <option value="in-person">En personne</option>
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Période</label>
-        <select class="form-select" id="period-filter">
-          <option value="upcoming">À venir</option>
-          <option value="past">Passés</option>
-          <option value="all">Tous</option>
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">&nbsp;</label>
-        <button class="btn btn-outline-primary w-100" id="filter-button">Filtrer</button>
-      </div>
-    </div>
+    </form>
   </div>
 </div>
 
 <!-- Liste des rendez-vous -->
-<h4 class="mb-3">Rendez-vous à venir</h4>
+<h4 class="mb-3">Rendez-vous</h4>
 
-{% if appointments %}
-  {% for appointment in appointments %}
+{% if appointments %}  {% for appointment in appointments %}
     <div class="appointment-card p-3 mb-3">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <h5 class="mb-1">{{ appointment.title }}</h5>
+          <h5 class="mb-1">{{ appointment.notes|truncatewords:5|default:"Rendez-vous" }}</h5>
           <p class="text-muted mb-1">
-            <i class="bi bi-person me-1"></i> {{ appointment.client.name }}
-            <i class="bi bi-clock ms-3 me-1"></i> {{ appointment.start_time|date:"d/m/Y H:i" }} - {{ appointment.end_time|date:"H:i" }}
+            <i class="bi bi-person me-1"></i> {{ appointment.client.name }} {{ appointment.client.first_name }}
+            <i class="bi bi-clock ms-3 me-1"></i> {{ appointment.date_time|date:"d/m/Y H:i" }} ({{ appointment.duration }}min)
           </p>
           <div class="d-flex align-items-center">
             <span class="appointment-status status-{{ appointment.status }}">
-              {{ appointment.get_status_display }}
+              {% if appointment.status == 'scheduled' %}
+                Planifié
+              {% elif appointment.status == 'confirmed' %}
+                Confirmé
+              {% elif appointment.status == 'completed' %}
+                Terminé
+              {% elif appointment.status == 'cancelled' %}
+                Annulé
+              {% endif %}
             </span>
             <span class="appointment-type">
-              {% if appointment.type == 'video' %}
+              {% if appointment.consultation_type == 'video' %}
                 <i class="bi bi-camera-video me-1"></i>Vidéoconférence
-              {% elif appointment.type == 'phone' %}
+              {% elif appointment.consultation_type == 'phone' %}
                 <i class="bi bi-telephone me-1"></i>Téléphone
               {% else %}
                 <i class="bi bi-person-square me-1"></i>En personne
@@ -142,17 +161,17 @@
           </div>
         </div>
         <div>
-          {% if appointment.status == 'pending' %}
-            <button class="btn btn-sm btn-success me-2">
+          {% if appointment.status == 'scheduled' %}
+            <a href="{% url 'expert_confirm_appointment' appointment.id %}" class="btn btn-sm btn-success me-2">
               <i class="bi bi-check-lg me-1"></i>Confirmer
-            </button>
+            </a>
           {% endif %}
           {% if appointment.status != 'cancelled' %}
-            <button class="btn btn-sm btn-danger me-2">
+            <a href="{% url 'expert_cancel_appointment' appointment.id %}" class="btn btn-sm btn-danger me-2" onclick="return confirm('Êtes-vous sûr de vouloir annuler ce rendez-vous ?')">
               <i class="bi bi-x-lg me-1"></i>Annuler
-            </button>
+            </a>
           {% endif %}
-          <a href="{% url 'custom_requests:appointment_detail' appointment.id %}" class="btn btn-sm btn-primary">
+          <a href="{% url 'expert_appointment_detail' appointment.id %}" class="btn btn-sm btn-primary">
             <i class="bi bi-eye me-1"></i>Détails
           </a>
         </div>
@@ -161,7 +180,7 @@
   {% endfor %}
 {% else %}
   <div class="alert alert-info">
-    <i class="bi bi-info-circle me-2"></i> Aucun rendez-vous à venir. Vous pouvez en ajouter un en cliquant sur le bouton "Ajouter un rendez-vous".
+    <i class="bi bi-info-circle me-2"></i> Aucun rendez-vous trouvé. Vous pouvez en ajouter un en cliquant sur le bouton "Ajouter un rendez-vous".
   </div>
 {% endif %}
 
@@ -174,7 +193,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <form method="post" action="{% url 'custom_requests:expert_add_appointment' %}">
+        <form method="post" action="{% url 'expert_add_appointment' %}">
           {% csrf_token %}
           <div class="mb-3">
             <label class="form-label">Titre</label>

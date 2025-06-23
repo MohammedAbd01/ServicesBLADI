@@ -59,10 +59,12 @@
         <label for="status" class="form-label">Statut</label>
         <select id="status" name="status" class="form-select">
           <option value="">Tous les statuts</option>
-          <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>En attente</option>
+          <option value="new" {% if status_filter == 'new' %}selected{% endif %}>Nouvelle</option>
+          <option value="pending_info" {% if status_filter == 'pending_info' %}selected{% endif %}>En attente d'info</option>
           <option value="in_progress" {% if status_filter == 'in_progress' %}selected{% endif %}>En cours</option>
           <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Terminée</option>
           <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Annulée</option>
+          <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejetée</option>
         </select>
       </div>
       
@@ -126,14 +128,18 @@
               <td>{{ request.service.title }}</td>
               <td>{{ request.created_at|date:"d/m/Y H:i" }}</td>
               <td>
-                {% if request.status == 'pending' %}
-                <span class="badge bg-warning">En attente</span>
+                {% if request.status == 'new' %}
+                <span class="badge bg-secondary">Nouvelle</span>
+                {% elif request.status == 'pending_info' %}
+                <span class="badge bg-warning">En attente d'info</span>
                 {% elif request.status == 'in_progress' %}
                 <span class="badge bg-info">En cours</span>
                 {% elif request.status == 'completed' %}
                 <span class="badge bg-success">Terminée</span>
                 {% elif request.status == 'cancelled' %}
                 <span class="badge bg-danger">Annulée</span>
+                {% elif request.status == 'rejected' %}
+                <span class="badge bg-danger">Rejetée</span>
                 {% endif %}
               </td>
               <td>
@@ -145,9 +151,9 @@
               </td>
               <td>
                 <div class="btn-group">
-                  <a href="{% url 'admin_request_detail' request.id %}" class="btn btn-sm btn-outline-primary">
+                  <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#requestDetailModal{{ request.id }}" title="Voir détails">
                     <i class="bi bi-eye"></i>
-                  </a>
+                  </button>
                   <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#assignModal{{ request.id }}">
                     <i class="bi bi-person-check"></i>
                   </button>
@@ -157,6 +163,50 @@
                 </div>
               </td>
             </tr>
+
+            <!-- Modal pour les détails de la demande -->
+            <div class="modal fade" id="requestDetailModal{{ request.id }}" tabindex="-1" aria-labelledby="requestDetailModalLabel{{ request.id }}" aria-hidden="true">
+              <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="requestDetailModalLabel{{ request.id }}">Détails de la demande #{{ request.id }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <h6 class="mb-3">Informations générales</h6>
+                        <p><strong>Service:</strong> {{ request.service.title }}</p>
+                        <p><strong>Client:</strong> {{ request.client.first_name }} {{ request.client.name }}</p>
+                        <p><strong>Date de création:</strong> {{ request.created_at|date:"d/m/Y H:i" }}</p>
+                        <p><strong>Statut:</strong> 
+                          <span class="badge {% if request.status == 'new' %}bg-secondary{% elif request.status == 'pending_info' %}bg-warning{% elif request.status == 'in_progress' %}bg-info{% elif request.status == 'completed' %}bg-success{% elif request.status == 'cancelled' or request.status == 'rejected' %}bg-danger{% endif %}">
+                            {% if request.status == 'new' %}Nouvelle
+                            {% elif request.status == 'pending_info' %}En attente d'info
+                            {% elif request.status == 'in_progress' %}En cours
+                            {% elif request.status == 'completed' %}Terminée
+                            {% elif request.status == 'cancelled' %}Annulée
+                            {% elif request.status == 'rejected' %}Rejetée{% endif %}
+                          </span>
+                        </p>
+                      </div>
+                      <div class="col-md-6">
+                        <h6 class="mb-3">Description</h6>
+                        <p>{{ request.description }}</p>
+                        {% if request.expert %}
+                        <h6 class="mb-3 mt-3">Expert assigné</h6>
+                        <p>{{ request.expert.first_name }} {{ request.expert.name }}</p>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    <a href="{% url 'admin_request_detail' request_id=request.id %}" class="btn btn-primary">Voir la demande complète</a>
+                  </div>
+                </div>
+              </div>
+            </div>
             {% empty %}
             <tr>
               <td colspan="7" class="text-center">Aucune demande trouvée</td>
@@ -275,10 +325,12 @@
           <div class="mb-3">
             <label for="status" class="form-label">Nouveau statut:</label>
             <select class="form-select" id="status" name="status" required>
-              <option value="pending" {% if request.status == 'pending' %}selected{% endif %}>En attente</option>
+              <option value="new" {% if request.status == 'new' %}selected{% endif %}>Nouvelle</option>
+              <option value="pending_info" {% if request.status == 'pending_info' %}selected{% endif %}>En attente d'info</option>
               <option value="in_progress" {% if request.status == 'in_progress' %}selected{% endif %}>En cours</option>
               <option value="completed" {% if request.status == 'completed' %}selected{% endif %}>Terminée</option>
               <option value="cancelled" {% if request.status == 'cancelled' %}selected{% endif %}>Annulée</option>
+              <option value="rejected" {% if request.status == 'rejected' %}selected{% endif %}>Rejetée</option>
             </select>
           </div>
           <div class="mb-3">

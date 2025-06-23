@@ -1,4 +1,5 @@
 {% load static %}
+{% load service_filters %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -32,15 +33,143 @@
 
   <!-- Dashboard specific CSS -->
   <style>
+    /* Style temporaire pour l'affichage du formulaire uniquement */
+    body, .main-content, .dashboard-wrapper {
+      background-color: white !important;
+    }
+    
+    /* Assurer que la sidebar ait toujours le bon z-index pour apparaître au-dessus du formulaire */
+    .sidebar {
+      z-index: 1060 !important;
+    }
+    
+    @media (max-width: 992px) {
+      .dashboard-wrapper {
+        padding-left: 0;
+        transition: all 0.3s ease;
+      }
+      
+      .sidebar {
+        transform: translateX(-100%);
+        position: fixed;
+        z-index: 1060;
+        height: 100vh;
+        overflow-y: auto;
+      }
+      
+      .sidebar.show {
+        transform: translateX(0);
+        box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+      }
+      
+      .main-content {
+        margin-left: 0 !important;
+        width: 100%;
+        padding: 1rem;
+      }
+      
+      .mobile-menu-toggle {
+        display: block !important;
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 1050;
+        background: var(--secondary-color);
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 2px 10px rgba(196, 154, 90, 0.3);
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+      
+      .mobile-menu-toggle:hover {
+        background-color: #b8904f;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(196, 154, 90, 0.4);
+      }
+      
+      .mobile-menu-toggle:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(196, 154, 90, 0.3);
+      }
+      
+      .stats-card {
+        margin-bottom: 15px;
+      }
+      
+      .dashboard-card {
+        margin-bottom: 20px;
+      }
+      
+      .table-responsive {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      .profile-edit-form {
+        width: 100% !important;
+        padding: 0.5rem !important;
+        left: 0 !important;
+        right: 0 !important;
+        z-index: 1055 !important; /* Au-dessus du menu mobile */
+      }
+      
+      .profile-edit-form .card-body {
+        padding: 1rem !important;
+      }
+      
+      .notification-dropdown {
+        position: fixed !important;
+        top: 80px !important;
+        right: 10px !important;
+        left: 10px !important;
+        width: auto !important;
+        max-height: 70vh;
+        overflow-y: auto;
+      }
+      
+      .notification-dropdown::before {
+        right: 20px !important;
+      }
+      
+      /* Assurer que le formulaire de profil reste accessible sur mobile */
+      body.profile-form-active .mobile-menu-toggle {
+        z-index: 1060 !important;
+      }
+    }
+    
+    @media (min-width: 769px) {
+      .mobile-menu-toggle {
+        display: none !important;
+      }
+    }
+    
     :root {
       --sidebar-width: 280px;
       --header-height: 70px;
       --primary-color: #2a2c39;
       --secondary-color: #C49A5A;
+      --background-color: #f8f9fa;
+      --card-bg-color: #ffffff;
+      --card-border-color: #dee2e6;
+      --default-text-color: #495057;
+      --heading-text-color: #343a40;
+      --light-gray-bg: #f8f9fa;
+      --card-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
     }
 
     body {
-      background-color: #ffffff;
+      background-color: var(--background-color);
+      font-family: 'Poppins', sans-serif;
     }
     
     /* Notification Styles */
@@ -376,82 +505,6 @@
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     
-    .notification-dropdown {
-      position: absolute;
-      top: 100%;
-      right: 0;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-      width: 400px;
-      max-height: 380px;
-      overflow-y: auto;
-      z-index: 9999;
-      display: none;
-      margin-top: 10px;
-    }
-    
-    .notification-dropdown.show {
-      display: block !important;
-    }
-    
-    .notification-dropdown::before {
-      content: '';
-      position: absolute;
-      top: -10px;
-      right: 10px;
-      border-left: 10px solid transparent;
-      border-right: 10px solid transparent;
-      border-bottom: 10px solid white;
-    }
-    
-    .notification-header {
-      padding: 15px;
-      border-bottom: 1px solid #eee;
-      background: var(--primary-color);
-      position: sticky;
-      top: 0;
-      z-index: 1;
-      border-top-left-radius: 8px;
-      border-top-right-radius: 8px;
-    }
-    
-    .notification-header h6 {
-      margin: 0;
-      font-weight: 600;
-      color: white;
-    }
-    
-    .notification-header .badge {
-      background-color: white !important;
-      color: var(--primary-color) !important;
-    }
-    
-    /* Notification Button Styles */
-    .notification-bell {
-      position: relative;
-      margin-right: 20px;
-      cursor: pointer;
-      padding: 8px 12px;
-      border-radius: 50%;
-      width: 45px;
-      height: 45px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      transition: all 0.3s ease;
-    }
-    
-    .notification-bell:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-      background-color: var(--primary-color);
-      color: white;
-    }
-    
-    .notification-bell:active {
-      transform: translateY(0);
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    
     .dashboard-wrapper {
       display: flex;
       min-height: 100vh;
@@ -578,27 +631,48 @@
     }
 
     .dashboard-card {
-      background: white;
-      border-radius: 15px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.05);
-      transition: transform 0.3s ease;
-      margin-bottom: 1.5rem;
+      background-color: var(--card-bg-color);
+      border: 1px solid var(--card-border-color);
+      border-radius: 0.5rem;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+      opacity: 1;
+      visibility: visible;
     }
 
     .dashboard-card:hover {
       transform: translateY(-5px);
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
     }
 
-    .card-header {
-      padding: 1.5rem;
-      border-bottom: 1px solid #eee;
+    .dashboard-card .card-body {
+      padding: 1.25rem;
+      background: white;
+    }
+
+    .dashboard-card .card-header {
+      background-color: var(--light-gray-bg);
+      color: var(--heading-text-color);
+      font-weight: 600;
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid var(--card-border-color);
+      border-top-left-radius: calc(0.5rem - 1px);
+      border-top-right-radius: calc(0.5rem - 1px);
       display: flex;
-      justify-content: space-between;
       align-items: center;
     }
 
-    .card-body {
-      padding: 1.5rem;
+    .dashboard-card .card-header i {
+      margin-right: 10px;
+      color: var(--secondary-color);
+    }
+
+    .dashboard-card .card-title {
+      font-family: "Raleway", sans-serif;
+      color: var(--heading-text-color);
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
     }
 
     .status-badge {
@@ -805,11 +879,193 @@
       transform: translateY(0);
     }
     
+    /* Bouton Menu pour le formulaire de profil */
+    .profile-menu-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background-color: var(--secondary-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 15px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 1070;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .profile-menu-btn:hover {
+      background-color: #b8904f;
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .profile-menu-btn i {
+      font-size: 1.1rem;
+    }
+    
     /* Media query for responsiveness */
     @media (max-width: 992px) {
+      
       .profile-edit-form {
         width: 100% !important;
-        left: 0;
+        left: 0 !important;
+        right: 0 !important;
+        padding: 1rem 0.5rem !important;
+      }
+      
+      .profile-edit-form .container-fluid {
+        padding: 0 !important;
+      }
+      
+      .profile-edit-form .card {
+        margin: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+      }
+      
+      .profile-edit-form .card-body {
+        padding: 1.5rem 1rem !important;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .profile-edit-form {
+        padding: 0.5rem !important;
+      }
+      
+      .profile-edit-form .col-lg-11,
+      .profile-edit-form .col-xl-10 {
+        padding: 0 !important;
+      }
+      
+      .profile-edit-form .card-header {
+        padding: 1.5rem 1rem !important;
+      }
+      
+      .profile-edit-form .card-body {
+        padding: 1rem 0.75rem !important;
+      }
+      
+      /* Formulaire responsive */
+      #userProfileForm .row.g-3 {
+        margin: 0 !important;
+      }
+      
+      #userProfileForm .col-md-6,
+      #userProfileForm .col-md-8,
+      #userProfileForm .col-lg-7 {
+        padding: 0 0.5rem !important;
+        margin-bottom: 1rem !important;
+      }
+      
+      /* Input groups plus grands sur mobile */
+      #userProfileForm .input-group-lg .form-control,
+      #userProfileForm .input-group-lg .form-select {
+        font-size: 1rem !important;
+        padding: 0.75rem !important;
+      }
+      
+      #userProfileForm .input-group-lg .input-group-text {
+        font-size: 1rem !important;
+        padding: 0.75rem !important;
+      }
+      
+      /* Photo de profil responsive */
+      #userProfileForm .col-md-4 {
+        text-align: center !important;
+        margin-bottom: 1rem !important;
+      }
+      
+      #userProfileForm .rounded-circle {
+        width: 100px !important;
+        height: 100px !important;
+      }
+      
+      /* Boutons responsive */
+      #userProfileForm .col-md-8.col-lg-5 {
+        max-width: 100% !important;
+      }
+      
+      #userProfileForm .btn-lg {
+        font-size: 1.1rem !important;
+        padding: 0.875rem 1.5rem !important;
+      }
+      
+      /* Titres de section plus petits */
+      #userProfileForm h5 {
+        font-size: 1rem !important;
+        margin-top: 1.5rem !important;
+        margin-bottom: 1rem !important;
+      }
+    }
+    
+    @media (max-width: 576px) {
+      .profile-edit-form {
+        padding: 0 !important;
+        box-shadow: none !important;
+      }
+      
+      .profile-edit-form .card {
+        min-height: 100vh !important;
+        border: none !important;
+      }
+      
+      .profile-edit-form .card-header {
+        padding: 1rem 0.75rem !important;
+      }
+      
+      .profile-edit-form .card-body {
+        padding: 0.75rem !important;
+      }
+      
+      /* Tous les champs en pleine largeur */
+      #userProfileForm .col-md-6,
+      #userProfileForm .col-md-8,
+      #userProfileForm .col-lg-7 {
+        flex: 0 0 100% !important;
+        max-width: 100% !important;
+        padding: 0 0.25rem !important;
+      }
+      
+      /* Espacement entre les champs */
+      #userProfileForm .mb-3 {
+        margin-bottom: 1.25rem !important;
+      }
+      
+      /* Labels et texte d'aide plus lisibles */
+      #userProfileForm .form-label {
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
+        margin-bottom: 0.5rem !important;
+      }
+      
+      #userProfileForm .form-text {
+        font-size: 0.85rem !important;
+      }
+      
+      /* Amélioration de la zone de sélection de pays */
+      #userProfileForm select.form-select {
+        font-size: 0.95rem !important;
+      }
+      
+      /* Photo de profil encore plus petite sur très petits écrans */
+      #userProfileForm .rounded-circle {
+        width: 80px !important;
+        height: 80px !important;
+      }
+      
+      /* Icône plus petite dans l'en-tête */
+      .profile-edit-form .card-header .fs-1 {
+        font-size: 2.5rem !important;
       }
     }
 
@@ -1040,87 +1296,409 @@
     }
 
     /* Calendar custom styling */
-    .fc-event {
-      background-color: var(--secondary-color) !important;
-      border-color: var(--secondary-color) !important;
-    }
-    .fc-event-main {
-        color: white !important;
-    }
-    .fc th { 
-        background-color: var(--light-gray-bg);
-        color: var(--heading-text-color);
-        font-family: "Raleway", sans-serif;
-    }
-    .fc-toolbar-title {
-        font-family: "Raleway", sans-serif;
-        color: var(--heading-text-color);
-    }
-    .fc-button-primary { 
-        background-color: var(--primary-color) !important;
-        border-color: var(--primary-color) !important;
-        color: white !important;
-    }
-    .fc-button-primary:hover {
-        background-color: color-mix(in srgb, var(--primary-color), #000000 10%) !important;
-        border-color: color-mix(in srgb, var(--primary-color), #000000 10%) !important;
-    }
-    .fc-button-primary:not(:disabled).fc-button-active, .fc-button-primary:not(:disabled):active {
-        background-color: var(--secondary-color) !important; 
-        border-color: var(--secondary-color) !important;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 991.98px) {
-      #sidebar {
-        left: -var(--sidebar-width); 
-      }
-      #sidebar.active {
-          left: 0; 
-      }
-      .main-content {
-        margin-left: 0;
-        width: 100%;
-      }
-      .client-header {
-        width: 100%;
-      }
-       body.sidebar-active .main-content {
-           margin-left: var(--sidebar-width);
-           width: calc(100% - var(--sidebar-width));
-       }
+    #calendar {
+      min-height: 500px;
     }
     
-    #appointmentModal .modal-header {
-        background-color: var(--primary-color);
-        color: white;
+    .fc-event {
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: 500;
     }
-    #appointmentModal .modal-header .btn-close {
-        filter: invert(1) grayscale(100%) brightness(200%);
+    
+    .fc-event-title {
+      white-space: normal;
+      overflow: visible;
+      font-weight: 500;
     }
-    #appointmentModal .modal-title {
-        font-family: "Raleway", sans-serif;
+    
+    /* Calendar tooltip styling */
+    .calendar-tooltip {
+      font-size: 0.85rem;
+      padding: 2px;
+    }
+    
+    .tooltip-title {
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+    
+    .tooltip-time, .tooltip-type, .tooltip-expert {
+      font-size: 0.8rem;
+      margin-bottom: 2px;
+    }
+    
+    /* Appointment details modal styling */
+    .appointment-details {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .detail-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 15px;
+    }
+    
+    .detail-icon {
+      background-color: rgba(13, 110, 253, 0.1);
+      color: var(--bs-primary);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+    
+    .detail-content {
+      flex: 1;
+    }
+    
+    .detail-label {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-bottom: 3px;
+    }
+    
+    .detail-value {
+      font-weight: 500;
+      color: #212529;
     }
 
-    .nav-tabs .nav-link {
-        color: var(--default-text-color);
-        border-bottom-color: transparent; 
+    /* Service Request Form Styles */
+    .service-request-form {
+      opacity: 0;
+      transition: all 0.3s ease;
+      transform: translateY(10px);
+      backdrop-filter: blur(5px);
     }
-    .nav-tabs .nav-link.active {
-        color: var(--secondary-color);
-        border-color: var(--secondary-color) var(--secondary-color) #fff; 
-        border-bottom-width: 3px;
-        font-weight: 600;
+
+    .service-request-form.show {
+      opacity: 1;
+      transform: translateY(0);
     }
-    .nav-tabs .nav-link:hover {
-        border-color: var(--light-gray-bg) var(--light-gray-bg) var(--secondary-color);
+
+    /* Overlay to hide main content when form is open */
+    .service-request-form::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(248, 249, 250, 0.97);
+      z-index: -1;
     }
+
+    /* Form styles */
+    #serviceRequestForm label {
+      font-weight: 500;
+      color: #444;
+    }
+
+    #serviceRequestForm .form-control:focus,
+    #serviceRequestForm .form-select:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.25rem rgba(30, 60, 114, 0.1);
+    }
+
+    /* Media query for responsiveness */
+    @media (max-width: 992px) {
+      .service-request-form {
+        width: 100% !important;
+        left: 0;
+      }
+    }
+
+  /* Added CSS from demandes.html */
+  /* Service card and form styles */
+  .service-fields {
+    margin-bottom: 1.5rem;
+  }
+  
+  /* Styles for demande cards (if they were to be used on dashboard) */
+  /* .demande-card { ... } */ /* Commented out as it might not be needed for dashboard */
+  
+  .status-badge {
+    padding: 0.35rem 0.75rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    display: inline-block;
+  }
+  
+  /* Specific status colors - ensure these don't conflict with dashboard existing ones */
+  /* or are specific enough to the form if dashboard has its own status badges */
+  .status-en-attente {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  
+  .status-en-cours {
+    background-color: #cce5ff;
+    color: #004085;
+  }
+  
+  .status-termine {
+    background-color: #d4edda;
+    color: #155724;
+  }
+  
+  /* Success alert styles - for the new form */
+  .alert-container {
+    /* position, top, left, transform, z-index, width, max-width are set inline in HTML */
+    /* ensure it does not conflict with other alert containers if any */
+    display: none;
+  }
+  .alert-container .alert {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border-left: 4px solid #198754; /* Specific success color */
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.3s ease;
+  }
+  
+  .alert-container .alert.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  /* General alert fade (Bootstrap might handle this, but good to have for consistency) */
+  .alert.fade {
+    transition: opacity 0.15s linear;
+  }
+  
+  .alert.fade.show {
+    opacity: 1;
+  }
+  
+  /* Dropdown styles for service selection (if customizing beyond bootstrap) */
+  /* .dropdown-menu .service-item { ... } */ /* Commented out for now */
+  
+  /* Form styles from demandes.html - specific to #serviceRequestForm */
+  #serviceRequestForm label {
+    font-weight: 500;
+    color: #444; /* Form label color */
+  }
+  
+  #serviceRequestForm .form-control:focus,
+  #serviceRequestForm .form-select:focus {
+    border-color: var(--primary-color); /* Uses dashboard primary color */
+    box-shadow: 0 0 0 0.25rem rgba(30, 60, 114, 0.1); /* Softer focus shadow */
+  }
+  
+  /* Service Request Form Container - Copied from demandes.html and adjusted */
+  .service-request-form {
+    /* display, position, top, right, bottom, width, background-color, z-index, padding, overflow, box-shadow are set inline in HTML for #serviceRequestFullForm */
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+  
+  .service-request-form.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  /* Overlay for form - from demandes.html */
+  /* This was an ::before pseudo-element on .service-request-form in demandes.html */
+  /* If #serviceRequestFullForm is the main container, it might not need this if it covers the screen */
+  /* For example, if background-color: rgba(248, 249, 250, 0.97); is applied to #serviceRequestFullForm directly and it covers the view */
+  
+  /* Media query for responsiveness - from demandes.html */
+  @media (max-width: 992px) {
+    .service-request-form {
+      /* width and left are handled inline for #serviceRequestFullForm */
+      /* This rule might be redundant if inline styles cover it or !important is used inline */
+      width: 100% !important;
+      left: 0 !important;
+    }
+  }
+  /* End of Added CSS from demandes.html */
+
+  /* Stats Cards */
+  .dashboard-card {
+    background-color: var(--card-bg-color);
+    border: 1px solid var(--card-border-color);
+    border-radius: 1rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .row.g-3 {
+    --bs-gutter-x: 1rem;
+    --bs-gutter-y: 1rem;
+    margin-right: calc(var(--bs-gutter-x) * -0.5);
+    margin-left: calc(var(--bs-gutter-x) * -0.5);
+  }
+
+  .row.g-3 > * {
+    padding-right: calc(var(--bs-gutter-x) * 0.5);
+    padding-left: calc(var(--bs-gutter-x) * 0.5);
+    margin-top: var(--bs-gutter-y);
+  }
+
+  .col-md-3 {
+    width: 25%;
+    flex: 0 0 25%;
+    max-width: 25%;
+  }
+
+  /* Stats Card specific styles */
+  .stats-card {
+    text-align: center;
+    padding: 1.25rem;
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .stats-card .card-body {
+    width: 100%;
+    padding: 1.25rem;
+  }
+
+  .stats-card .d-flex {
+    width: 100%;
+  }
+
+  .stats-card {
+    height: 100%;
+    margin-bottom: 0;
+  }
+
+  .stats-card h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0;
+    color: var(--primary-color);
+    line-height: 1.2;
+  }
+
+  .stats-card i {
+    font-size: 2rem;
+    color: var(--secondary-color);
+    opacity: 0.9;
+  }
+
+  @media (max-width: 768px) {
+    .stats-card h3 {
+      font-size: 1.25rem;
+    }
+    .stats-card i {
+      font-size: 1.75rem !important;
+    }
+  }
+
+  .stats-card h6 {
+    font-size: 0.85rem;
+    color: var(--default-text-color);
+    margin-bottom: 0;
+    opacity: 0.8;
+  }
+
+  /* Service Cards */
+  .service-card {
+    background-color: white;
+    border-radius: 1rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    height: 100%;
+    min-height: 150px;
+    position: relative;
+    overflow: hidden;
+    padding: 1.5rem;
+    text-align: center;
+    border: 1px solid var(--card-border-color);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  /* Ajustement des colonnes pour une meilleure uniformité */
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-right: -8px;
+    margin-left: -8px;
+  }
+
+  .col-md-3, .col-md-4, .col-6 {
+    padding: 0 6px 12px;
+    display: flex;
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+  
+  @media (min-width: 768px) {
+    .col-md-3, .col-md-4, .col-6 {
+      padding: 0 12px 16px;
+    }
+  }
+  
+  @media (min-width: 768px) {
+    .col-md-3 {
+      flex: 0 0 25%;
+      max-width: 25%;
+    }
+    .col-md-4 {
+      flex: 0 0 33.333333%;
+      max-width: 33.333333%;
+    }
+  }
+
+  /* Ajustement spécifique pour les cartes de service */
+  .service-card .service-icon {
+    font-size: 2.5rem;
+    color: var(--secondary-color);
+    margin-bottom: 1rem;
+    display: inline-block;
+    transition: transform 0.3s ease;
+  }
+
+  .service-card h3 {
+    margin-bottom: 0.75rem;
+    color: var(--heading-text-color);
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .service-card p {
+    color: var(--default-text-color);
+    font-size: 0.9rem;
+    margin-bottom: 0;
+    opacity: 0.8;
+    line-height: 1.4;
+  }
 
   </style>
 </head>
 
 <body>
   <div class="dashboard-wrapper">
+    <!-- Mobile Menu Toggle Button -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+      <i class="bi bi-list"></i> Menu
+    </button>
+    
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-header">
@@ -1159,10 +1737,13 @@
           <i class="bi bi-person-gear"></i>
           <span>Modifier Profil</span>
         </a>
-        <a href="{% url 'accounts:logout' %}" class="text-white text-decoration-none">
-          <i class="bi bi-box-arrow-right"></i>
-          <span>Déconnexion</span>
-        </a>
+        <form method="post" action="{% url 'accounts:logout' %}" style="display: inline;">
+          {% csrf_token %}
+          <button type="submit" class="text-white text-decoration-none bg-transparent border-0 w-100 text-start d-flex align-items-center" style="background: none;">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Déconnexion</span>
+          </button>
+        </form>
       </nav>
     </aside>
 
@@ -1178,13 +1759,15 @@
             </button>
             <ul class="dropdown-menu" aria-labelledby="newRequestDropdown">
               {% for service in available_services %}
-                <li><a class="dropdown-item" href="#" data-service="{{ service.title }}">{{ service.title }}</a></li>
+                {% if service|should_display_service %}
+                  <li><a class="dropdown-item" href="#" data-service="{{ service.title }}">{{ service.title|translate_service_name }}</a></li>
+                {% endif %}
               {% empty %}
-                <li><a class="dropdown-item" href="#" data-service="Service Administratif">Services Administratifs</a></li>
-                <li><a class="dropdown-item" href="#" data-service="Service Tourisme">Tourisme</a></li>
-                <li><a class="dropdown-item" href="#" data-service="Service Immobilier">Immobilier</a></li>
-                <li><a class="dropdown-item" href="#" data-service="Service Fiscal">Fiscalité</a></li>
-                <li><a class="dropdown-item" href="#" data-service="Service Investissement">Investissement</a></li>
+                <li><a class="dropdown-item" href="#" data-service="Administratif">Administratif</a></li>
+                <li><a class="dropdown-item" href="#" data-service="Tourisme">Tourisme</a></li>
+                <li><a class="dropdown-item" href="#" data-service="Immobilier">Immobilier</a></li>
+                <li><a class="dropdown-item" href="#" data-service="Fiscal">Fiscal</a></li>
+                <li><a class="dropdown-item" href="#" data-service="Investissement">Investissement</a></li>
               {% endfor %}
             </ul>
           </div>
@@ -1213,7 +1796,7 @@
               <div class="list-group list-group-flush">
                 {% if notifications %}
                   {% for notification in notifications %}
-                    <a href="{% url 'custom_requests:mark_notification_read' notification.id %}?redirect_url={% if notification.type == 'SERVICE_REQUEST' %}{% url 'client_demandes' %}{% elif notification.type == 'APPOINTMENT' %}{% url 'client_rendezvous' %}{% elif notification.type == 'message' %}{% url 'client_messages' %}?contact={{ notification.related_message.sender.id }}{% else %}{% url 'client_dashboard' %}{% endif %}" 
+                    <a href="{% url 'custom_requests:mark_notification_read' notification.id %}?redirect_url={% if notification.type == 'request_update' %}{% url 'client_demandes' %}{% elif notification.type == 'appointment' or notification.type == 'appointment_update' %}{% if notification.related_rendez_vous %}{% url 'custom_requests:appointment_detail' notification.related_rendez_vous.id %}{% else %}{% url 'client_rendezvous' %}{% endif %}{% elif notification.type == 'message' and notification.related_message %}{% url 'client_messages' %}?contact={{ notification.related_message.sender.id }}{% else %}{% url 'client_dashboard' %}{% endif %}" 
                        class="list-group-item list-group-item-action border-0 p-0">
                       <div class="px-3 py-3 {% if not notification.is_read %}position-relative overflow-hidden{% endif %}" style="transition: all 0.2s ease;">
                         {% if not notification.is_read %}
@@ -1249,9 +1832,9 @@
       </div>
 
       <!-- Stats Cards -->
-      <div class="row">
-        <div class="col-md-3">
-          <div class="dashboard-card">
+      <div class="row gx-2 gx-md-3">
+        <div class="col-6 col-md-3">
+          <div class="dashboard-card stats-card">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center">
                 <div>
@@ -1263,39 +1846,39 @@
             </div>
           </div>
         </div>
-        <div class="col-md-3">
-          <div class="dashboard-card">
+        <div class="col-6 col-md-3">
+          <div class="dashboard-card stats-card h-100">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center">
                 <div>
                   <h6 class="text-muted">Demandes en cours</h6>
-                  <h3>{{ active_requests }}</h3>
+                  <h3 class="mb-0">{{ active_requests }}</h3>
                 </div>
                 <i class="bi bi-clock-fill text-warning" style="font-size: 2rem;"></i>
               </div>
             </div>
           </div>
         </div>
-        <div class="col-md-3">
-          <div class="dashboard-card">
+        <div class="col-6 col-md-3">
+          <div class="dashboard-card stats-card h-100">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center">
                 <div>
                   <h6 class="text-muted">Documents</h6>
-                  <h3>{{ documents_count }}</h3>
+                  <h3 class="mb-0">{{ documents_count }}</h3>
                 </div>
                 <i class="bi bi-file-earmark-text-fill text-primary" style="font-size: 2rem;"></i>
               </div>
             </div>
           </div>
         </div>
-        <div class="col-md-3">
-          <div class="dashboard-card">
+        <div class="col-6 col-md-3">
+          <div class="dashboard-card stats-card h-100">
             <div class="card-body">
               <div class="d-flex justify-content-between align-items-center">
                 <div>
                   <h6 class="text-muted">Ressources</h6>
-                  <h3>{{ resources_count }}</h3>
+                  <h3 class="mb-0">{{ resources_count }}</h3>
                 </div>
                 <i class="bi bi-book-fill text-info" style="font-size: 2rem;"></i>
               </div>
@@ -1311,45 +1894,47 @@
         </div>
         {% if available_services %}
           {% for service in available_services %}
-          <div class="col-md-4 mb-4">
-            <div class="service-card p-4 text-center" onclick="showServiceRequestForm('{{ service.title }}')">
-              <i class="bi bi-{{ service.icon }} service-icon"></i>
-              <h3>{{ service.title }}</h3>
-              <p>{{ service.description|truncatewords:10 }}</p>
+            {% if service|should_display_service %}
+            <div class="col-md-4 mb-4">
+              <div class="service-card p-4 text-center" data-service="{{ service.title }}">
+                <i class="bi bi-{{ service.icon }} service-icon"></i>
+                <h3>{{ service.title|translate_service_name }}</h3>
+                <p>{{ service.description|truncatewords:10 }}</p>
+              </div>
             </div>
-          </div>
+            {% endif %}
           {% endfor %}
         {% else %}
           <div class="col-md-4 mb-4">
-            <div class="service-card p-4 text-center" onclick="showServiceRequestForm('Service Administratif')">
+            <div class="service-card p-4 text-center" data-service="Services Administratifs">
               <i class="bi bi-file-earmark-text service-icon"></i>
-              <h3>Services Administratifs</h3>
+              <h3>Administratif</h3>
               <p>Gestion de vos démarches administratives</p>
             </div>
           </div>
           <div class="col-md-4 mb-4">
-            <div class="service-card p-4 text-center" onclick="showServiceRequestForm('Service Tourisme')">
+            <div class="service-card p-4 text-center" data-service="Tourisme">
               <i class="bi bi-airplane service-icon"></i>
               <h3>Tourisme</h3>
               <p>Organisation de vos voyages au Maroc</p>
             </div>
           </div>
           <div class="col-md-4 mb-4">
-            <div class="service-card p-4 text-center" onclick="showServiceRequestForm('Service Immobilier')">
+            <div class="service-card p-4 text-center" data-service="Immobilier">
               <i class="bi bi-house-door service-icon"></i>
               <h3>Immobilier</h3>
               <p>Gestion de vos biens immobiliers</p>
             </div>
           </div>
           <div class="col-md-4 mb-4">
-            <div class="service-card p-4 text-center" onclick="showServiceRequestForm('Service Fiscal')">
+            <div class="service-card p-4 text-center" data-service="Fiscal">
               <i class="bi bi-calculator service-icon"></i>
-              <h3>Fiscalité</h3>
+              <h3>Fiscal</h3>
               <p>Conseils et gestion fiscale</p>
             </div>
           </div>
           <div class="col-md-4 mb-4">
-            <div class="service-card p-4 text-center" onclick="showServiceRequestForm('Service Investissement')">
+            <div class="service-card p-4 text-center" data-service="Investissement">
               <i class="bi bi-graph-up service-icon"></i>
               <h3>Investissement</h3>
               <p>Opportunités d'investissement au Maroc</p>
@@ -1394,11 +1979,11 @@
                       Créer une nouvelle demande
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="createRequestBtn">
-                      <li><a class="dropdown-item" href="javascript:showServiceRequestForm('Service Administratif')">Services Administratifs</a></li>
-                      <li><a class="dropdown-item" href="javascript:showServiceRequestForm('Service Tourisme')">Tourisme</a></li>
-                      <li><a class="dropdown-item" href="javascript:showServiceRequestForm('Service Immobilier')">Immobilier</a></li>
-                      <li><a class="dropdown-item" href="javascript:showServiceRequestForm('Service Fiscal')">Fiscalité</a></li>
-                      <li><a class="dropdown-item" href="javascript:showServiceRequestForm('Service Investissement')">Investissement</a></li>
+                      <li><a class="dropdown-item" href="#" data-service="Services Administratifs">Administratif</a></li>
+                      <li><a class="dropdown-item" href="#" data-service="Tourisme">Tourisme</a></li>
+                      <li><a class="dropdown-item" href="#" data-service="Immobilier">Immobilier</a></li>
+                      <li><a class="dropdown-item" href="#" data-service="Fiscalité">Fiscalité</a></li>
+                      <li><a class="dropdown-item" href="#" data-service="Investissement">Investissement</a></li>
                     </ul>
                   </div>
                 {% endif %}
@@ -1433,19 +2018,10 @@
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Calendar and Appointments -->
+      </div>      <!-- Calendar and Appointments -->
       <div class="row">
         <div class="col-md-8">
-          <div class="dashboard-card">
-            <div class="card-header">
-              <h5 class="mb-0">Calendrier des Rendez-vous</h5>
-            </div>
-            <div class="card-body">
-              <div id="calendar"></div>
-            </div>
-          </div>
+          <!-- Calendrier supprimé -->
         </div>
         <div class="col-md-4">
           <div class="dashboard-card">
@@ -1465,8 +2041,7 @@
                       <p class="mb-1">
                         {% if appointment.service_request %}
                           {{ appointment.service_request.title }}
-                        {% endif %}
-                        avec 
+                        {% endif %} avec 
                         {% if appointment.expert %}
                           {{ appointment.expert.name }} {{ appointment.expert.first_name }}
                         {% else %}
@@ -1490,18 +2065,43 @@
     </main>
   </div>
 
-  <!-- Profile Edit Form (Hidden by default) -->
-  <div class="profile-edit-form" id="profileEditForm" style="display: none; position: fixed; top: 0; right: 0; bottom: 0; width: calc(100% - var(--sidebar-width)); background-color: #f8f9fa; z-index: 1050; padding: 1rem; overflow-y: auto; overflow-x: hidden; box-shadow: -5px 0 15px rgba(0,0,0,0.1);">
+  <!-- Profile Edit Form (Visible) -->
+  <div class="profile-edit-form" id="profileEditForm" style="display: block; position: fixed; top: 0; right: 0; bottom: 0; width: calc(100% - var(--sidebar-width)); background-color: #f8f9fa; z-index: 1050; padding: 1rem; overflow-y: auto; overflow-x: hidden; box-shadow: -5px 0 15px rgba(0,0,0,0.1);">
     <div class="container-fluid py-2">
       <div class="row justify-content-center">
         <div class="col-lg-11 col-xl-10">
           <div class="card shadow-lg border-0 rounded-3">
+            <!-- Bouton Menu (visible sur tous les écrans) -->
+            <button id="profileSidebarToggle" class="profile-menu-btn">
+              <i class="bi bi-list"></i> Menu
+            </button>
             <div class="card-header bg-white text-center py-4 border-bottom">
-              <i class="bi bi-person-gear text-primary fs-1 mb-3"></i>
-              <h3 class="card-title mb-1">Modifier votre profil</h3>
+              <div class="d-flex flex-column align-items-center justify-content-center">
+                <i class="bi bi-person-gear text-primary fs-1 mb-3"></i>
+                <h3 class="card-title mb-1">Modifier votre profil</h3>
+                <p class="text-muted small">Mettez à jour vos informations personnelles</p>
+              </div>
             </div>
             <div class="card-body p-4 p-xl-5">
-              <form id="userProfileForm" class="needs-validation" novalidate>
+              <form id="userProfileForm" class="needs-validation" novalidate enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <!-- Photo de profil -->
+                <h5 class="mb-3 border-bottom pb-2">Photo de profil</h5>
+                <div class="row g-3 mb-4">
+                  <div class="col-md-4 text-center">
+                    <img src="{{ user.get_profile_picture_url }}" alt="Photo de profil" class="rounded-circle mb-3" style="width: 120px; height: 120px; object-fit: cover; border: 3px solid #eee;">
+                  </div>
+                  <div class="col-md-8">
+                    <label for="profile_picture" class="form-label">Changer ma photo</label>
+                    <div class="input-group input-group-lg">
+                      <span class="input-group-text"><i class="bi bi-image"></i></span>
+                      <input type="file" class="form-control" id="profile_picture" name="profile_picture" accept="image/*">
+                    </div>
+                    <div class="form-text text-muted">Formats acceptés: JPG, PNG. Taille maximale: 2MB.</div>
+                  </div>
+                </div>
+                
                 <!-- Informations personnelles -->
                 <h5 class="mb-3 border-bottom pb-2">Informations personnelles</h5>
                 
@@ -1558,20 +2158,252 @@
                     <div class="input-group input-group-lg">
                       <span class="input-group-text"><i class="bi bi-globe"></i></span>
                       <select class="form-select" id="residence_country" name="residence_country">
-                        {% for country_code, country_name in settings.COUNTRIES %}
-                          <option value="{{ country_code }}" {% if user.residence_country == country_code %}selected{% endif %}>{{ country_name }}</option>
-                        {% empty %}
-                          <option value="MA" {% if user.residence_country == 'MA' %}selected{% endif %}>Maroc</option>
-                          <option value="FR" {% if user.residence_country == 'FR' %}selected{% endif %}>France</option>
-                          <option value="ES" {% if user.residence_country == 'ES' %}selected{% endif %}>Espagne</option>
-                          <option value="BE" {% if user.residence_country == 'BE' %}selected{% endif %}>Belgique</option>
-                          <option value="CA" {% if user.residence_country == 'CA' %}selected{% endif %}>Canada</option>
-                          <option value="IT" {% if user.residence_country == 'IT' %}selected{% endif %}>Italie</option>
-                          <option value="DE" {% if user.residence_country == 'DE' %}selected{% endif %}>Allemagne</option>
-                          <option value="NL" {% if user.residence_country == 'NL' %}selected{% endif %}>Pays-Bas</option>
-                          <option value="GB" {% if user.residence_country == 'GB' %}selected{% endif %}>Royaume-Uni</option>
-                          <option value="US" {% if user.residence_country == 'US' %}selected{% endif %}>États-Unis</option>
-                        {% endfor %}
+                        <option value="AF">Afghanistan</option>
+                        <option value="ZA">Afrique du Sud</option>
+                        <option value="AL">Albanie</option>
+                        <option value="DZ">Algérie</option>
+                        <option value="DE">Allemagne</option>
+                        <option value="AD">Andorre</option>
+                        <option value="AO">Angola</option>
+                        <option value="AI">Anguilla</option>
+                        <option value="AQ">Antarctique</option>
+                        <option value="AG">Antigua-et-Barbuda</option>
+                        <option value="SA">Arabie saoudite</option>
+                        <option value="AR">Argentine</option>
+                        <option value="AM">Arménie</option>
+                        <option value="AW">Aruba</option>
+                        <option value="AU">Australie</option>
+                        <option value="AT">Autriche</option>
+                        <option value="AZ">Azerbaïdjan</option>
+                        <option value="BS">Bahamas</option>
+                        <option value="BH">Bahreïn</option>
+                        <option value="BD">Bangladesh</option>
+                        <option value="BB">Barbade</option>
+                        <option value="BY">Biélorussie</option>
+                        <option value="BE">Belgique</option>
+                        <option value="BZ">Belize</option>
+                        <option value="BJ">Bénin</option>
+                        <option value="BM">Bermudes</option>
+                        <option value="BT">Bhoutan</option>
+                        <option value="BO">Bolivie</option>
+                        <option value="BA">Bosnie-Herzégovine</option>
+                        <option value="BW">Botswana</option>
+                        <option value="BR">Brésil</option>
+                        <option value="BN">Brunei</option>
+                        <option value="BG">Bulgarie</option>
+                        <option value="BF">Burkina Faso</option>
+                        <option value="BI">Burundi</option>
+                        <option value="KH">Cambodge</option>
+                        <option value="CM">Cameroun</option>
+                        <option value="CA">Canada</option>
+                        <option value="CV">Cap-Vert</option>
+                        <option value="CF">République centrafricaine</option>
+                        <option value="CL">Chili</option>
+                        <option value="CN">Chine</option>
+                        <option value="CY">Chypre</option>
+                        <option value="CO">Colombie</option>
+                        <option value="KM">Comores</option>
+                        <option value="CG">Congo</option>
+                        <option value="CD">République démocratique du Congo</option>
+                        <option value="CK">Îles Cook</option>
+                        <option value="KR">Corée du Sud</option>
+                        <option value="KP">Corée du Nord</option>
+                        <option value="CR">Costa Rica</option>
+                        <option value="CI">Côte d'Ivoire</option>
+                        <option value="HR">Croatie</option>
+                        <option value="CU">Cuba</option>
+                        <option value="CW">Curaçao</option>
+                        <option value="DK">Danemark</option>
+                        <option value="DJ">Djibouti</option>
+                        <option value="DM">Dominique</option>
+                        <option value="EG">Égypte</option>
+                        <option value="AE">Émirats arabes unis</option>
+                        <option value="EC">Équateur</option>
+                        <option value="ER">Érythrée</option>
+                        <option value="ES">Espagne</option>
+                        <option value="EE">Estonie</option>
+                        <option value="US">États-Unis</option>
+                        <option value="ET">Éthiopie</option>
+                        <option value="FJ">Fidji</option>
+                        <option value="FI">Finlande</option>
+                        <option value="FR">France</option>
+                        <option value="GA">Gabon</option>
+                        <option value="GM">Gambie</option>
+                        <option value="GE">Géorgie</option>
+                        <option value="GS">Géorgie du Sud-et-les Îles Sandwich du Sud</option>
+                        <option value="GH">Ghana</option>
+                        <option value="GI">Gibraltar</option>
+                        <option value="GR">Grèce</option>
+                        <option value="GD">Grenade</option>
+                        <option value="GL">Groenland</option>
+                        <option value="GP">Guadeloupe</option>
+                        <option value="GU">Guam</option>
+                        <option value="GT">Guatemala</option>
+                        <option value="GG">Guernesey</option>
+                        <option value="GN">Guinée</option>
+                        <option value="GQ">Guinée équatoriale</option>
+                        <option value="GW">Guinée-Bissau</option>
+                        <option value="GY">Guyana</option>
+                        <option value="GF">Guyane française</option>
+                        <option value="HT">Haïti</option>
+                        <option value="HN">Honduras</option>
+                        <option value="HU">Hongrie</option>
+                        <option value="BV">Île Bouvet</option>
+                        <option value="IM">Île de Man</option>
+                        <option value="CX">Île Christmas</option>
+                        <option value="NF">Île Norfolk</option>
+                        <option value="AX">Îles Åland</option>
+                        <option value="KY">Îles Caïmans</option>
+                        <option value="CC">Îles Cocos</option>
+                        <option value="FO">Îles Féroé</option>
+                        <option value="HM">Îles Heard-et-MacDonald</option>
+                        <option value="FK">Îles Malouines</option>
+                        <option value="MP">Îles Mariannes du Nord</option>
+                        <option value="MH">Îles Marshall</option>
+                        <option value="UM">Îles mineures éloignées des États-Unis</option>
+                        <option value="PN">Îles Pitcairn</option>
+                        <option value="SB">Îles Salomon</option>
+                        <option value="TC">Îles Turques-et-Caïques</option>
+                        <option value="VI">Îles Vierges américaines</option>
+                        <option value="VG">Îles Vierges britanniques</option>
+                        <option value="IN">Inde</option>
+                        <option value="ID">Indonésie</option>
+                        <option value="IQ">Irak</option>
+                        <option value="IR">Iran</option>
+                        <option value="IE">Irlande</option>
+                        <option value="IS">Islande</option>
+                        <option value="IL">Israël</option>
+                        <option value="IT">Italie</option>
+                        <option value="JM">Jamaïque</option>
+                        <option value="JP">Japon</option>
+                        <option value="JE">Jersey</option>
+                        <option value="JO">Jordanie</option>
+                        <option value="KZ">Kazakhstan</option>
+                        <option value="KE">Kenya</option>
+                        <option value="KG">Kirghizistan</option>
+                        <option value="KI">Kiribati</option>
+                        <option value="KW">Koweït</option>
+                        <option value="LA">Laos</option>
+                        <option value="LS">Lesotho</option>
+                        <option value="LV">Lettonie</option>
+                        <option value="LB">Liban</option>
+                        <option value="LR">Libéria</option>
+                        <option value="LY">Libye</option>
+                        <option value="LI">Liechtenstein</option>
+                        <option value="LT">Lituanie</option>
+                        <option value="LU">Luxembourg</option>
+                        <option value="MK">Macédoine du Nord</option>
+                        <option value="MG">Madagascar</option>
+                        <option value="MY">Malaisie</option>
+                        <option value="MW">Malawi</option>
+                        <option value="MV">Maldives</option>
+                        <option value="ML">Mali</option>
+                        <option value="MT">Malte</option>
+                        <option value="MA">Maroc</option>
+                        <option value="MQ">Martinique</option>
+                        <option value="MU">Maurice</option>
+                        <option value="MR">Mauritanie</option>
+                        <option value="YT">Mayotte</option>
+                        <option value="MX">Mexique</option>
+                        <option value="FM">Micronésie</option>
+                        <option value="MD">Moldavie</option>
+                        <option value="MC">Monaco</option>
+                        <option value="MN">Mongolie</option>
+                        <option value="ME">Monténégro</option>
+                        <option value="MS">Montserrat</option>
+                        <option value="MZ">Mozambique</option>
+                        <option value="MM">Myanmar</option>
+                        <option value="NA">Namibie</option>
+                        <option value="NR">Nauru</option>
+                        <option value="NP">Népal</option>
+                        <option value="NI">Nicaragua</option>
+                        <option value="NE">Niger</option>
+                        <option value="NG">Nigeria</option>
+                        <option value="NU">Niue</option>
+                        <option value="NO">Norvège</option>
+                        <option value="NC">Nouvelle-Calédonie</option>
+                        <option value="NZ">Nouvelle-Zélande</option>
+                        <option value="OM">Oman</option>
+                        <option value="UG">Ouganda</option>
+                        <option value="UZ">Ouzbékistan</option>
+                        <option value="PK">Pakistan</option>
+                        <option value="PW">Palaos</option>
+                        <option value="PS">Palestine</option>
+                        <option value="PA">Panama</option>
+                        <option value="PG">Papouasie-Nouvelle-Guinée</option>
+                        <option value="PY">Paraguay</option>
+                        <option value="NL">Pays-Bas</option>
+                        <option value="PE">Pérou</option>
+                        <option value="PH">Philippines</option>
+                        <option value="PL">Pologne</option>
+                        <option value="PF">Polynésie française</option>
+                        <option value="PR">Porto Rico</option>
+                        <option value="PT">Portugal</option>
+                        <option value="QA">Qatar</option>
+                        <option value="HK">R.A.S. chinoise de Hong Kong</option>
+                        <option value="MO">R.A.S. chinoise de Macao</option>
+                        <option value="RE">Réunion</option>
+                        <option value="RO">Roumanie</option>
+                        <option value="GB">Royaume-Uni</option>
+                        <option value="RU">Russie</option>
+                        <option value="RW">Rwanda</option>
+                        <option value="EH">Sahara occidental</option>
+                        <option value="BL">Saint-Barthélemy</option>
+                        <option value="KN">Saint-Kitts-et-Nevis</option>
+                        <option value="SM">Saint-Marin</option>
+                        <option value="MF">Saint-Martin</option>
+                        <option value="PM">Saint-Pierre-et-Miquelon</option>
+                        <option value="VC">Saint-Vincent-et-les-Grenadines</option>
+                        <option value="SH">Sainte-Hélène</option>
+                        <option value="LC">Sainte-Lucie</option>
+                        <option value="WS">Samoa</option>
+                        <option value="AS">Samoa américaines</option>
+                        <option value="ST">Sao Tomé-et-Principe</option>
+                        <option value="SN">Sénégal</option>
+                        <option value="RS">Serbie</option>
+                        <option value="SC">Seychelles</option>
+                        <option value="SL">Sierra Leone</option>
+                        <option value="SG">Singapour</option>
+                        <option value="SX">Saint-Martin (partie néerlandaise)</option>
+                        <option value="SK">Slovaquie</option>
+                        <option value="SI">Slovénie</option>
+                        <option value="SO">Somalie</option>
+                        <option value="SD">Soudan</option>
+                        <option value="SS">Soudan du Sud</option>
+                        <option value="LK">Sri Lanka</option>
+                        <option value="SE">Suède</option>
+                        <option value="CH">Suisse</option>
+                        <option value="SR">Suriname</option>
+                        <option value="SJ">Svalbard et Île Jan Mayen</option>
+                        <option value="SZ">Swaziland</option>
+                        <option value="SY">Syrie</option>
+                        <option value="TJ">Tadjikistan</option>
+                        <option value="TW">Taïwan</option>
+                        <option value="TZ">Tanzanie</option>
+                        <option value="TD">Tchad</option>
+                        <option value="CZ">République tchèque</option>
+                        <option value="TF">Terres australes françaises</option>
+                        <option value="IO">Territoire britannique de l'océan Indien</option>
+                        <option value="TH">Thaïlande</option>
+                        <option value="TL">Timor oriental</option>
+                        <option value="TG">Togo</option>
+                        <option value="TK">Tokelau</option>
+                        <option value="TO">Tonga</option>
+                        <option value="TT">Trinité-et-Tobago</option>
+                        <option value="TN">Tunisie</option>
+                        <option value="TM">Turkménistan</option>
+                        <option value="TR">Turquie</option>
+                        <option value="TV">Tuvalu</option>
+                        <option value="UA">Ukraine</option>
+                        <option value="UY">Uruguay</option>
+                        <option value="VU">Vanuatu</option>
+                        <option value="VA">Vatican</option>
+                        <option value="VE">Venezuela</option>
+                        <option value="VN">Vietnam</option>
+                        <option value="WF">Wallis-et-Futuna</option>
+                        <option value="YE">Yémen</option>
+                        <option value="ZM">Zambie</option>
+                        <option value="ZW">Zimbabwe</option>
                       </select>
                     </div>
                   </div>
@@ -1581,7 +2413,7 @@
                 <div class="row mt-5">
                   <div class="col-md-8 col-lg-5 mx-auto">
                     <div class="d-grid gap-2">
-                      <button type="submit" class="btn btn-primary btn-lg py-3"><i class="bi bi-check-circle me-2"></i>Enregistrer</button>
+                      <button type="submit" class="btn btn-lg py-3" style="background-color: var(--secondary-color); color: white;"><i class="bi bi-check-circle me-2"></i>Enregistrer</button>
                       <button type="button" id="closeProfileForm" class="btn btn-outline-secondary py-2"><i class="bi bi-x-circle me-2"></i>Annuler</button>
                     </div>
                   </div>
@@ -1593,6 +2425,8 @@
       </div>
     </div>
   </div>
+</div>
+
 
   <!-- Success Alert (Hidden by default) -->
   <div class="alert-container" style="display: none; position: fixed; top: 30px; left: 50%; transform: translateX(-50%); z-index: 1060; width: 90%; max-width: 500px;">
@@ -1609,20 +2443,21 @@
   </div>
 
   <!-- Service Request Form (Hidden by default) -->
-  <div class="service-request-form" id="serviceRequestFullForm" style="display: none; position: fixed; top: 0; right: 0; bottom: 0; width: calc(100% - var(--sidebar-width)); background-color: var(--background-color); z-index: 1050; padding: 1rem; overflow-y: auto; overflow-x: hidden; box-shadow: -5px 0 15px rgba(0,0,0,0.1);">
+  <div class="service-request-form" id="serviceRequestFullForm" style="display: none; position: fixed; top: 0; right: 0; bottom: 0; width: calc(100% - var(--sidebar-width)); background-color: #f8f9fa; z-index: 1050; padding: 1rem; overflow-y: auto; overflow-x: hidden; box-shadow: -5px 0 15px rgba(0,0,0,0.1);">
     <div class="container-fluid py-2">
       <div class="row justify-content-center">
         <div class="col-lg-11 col-xl-10">
           <div class="card shadow-lg border-0 rounded-3">
             <div class="card-header bg-white text-center py-4 border-bottom">
               <div class="d-flex flex-column align-items-center justify-content-center">
+                <button type="button" class="btn-close position-absolute top-0 end-0 m-3" aria-label="Fermer"></button>
                 <i class="bi bi-file-earmark-text text-primary fs-1 mb-3"></i>
                 <h3 class="card-title mb-1" id="formServiceTitle">Nouvelle demande</h3>
                 <p class="text-muted small" id="formServiceDescription">Veuillez remplir le formulaire ci-dessous</p>
               </div>
             </div>
             <div class="card-body p-4 p-xl-5">
-              <form id="serviceRequestForm">
+              <form id="serviceRequestForm" action="{% url 'custom_requests:ajax_create_request' %}" method="POST" enctype="multipart/form-data">
                 {% csrf_token %}
                 <input type="hidden" id="serviceType" name="serviceType" value="">
                 
@@ -1847,13 +2682,13 @@
                 </div>
                 
                 <!-- Boutons d'action -->
-                <div class="row mt-5">
-                  <div class="col-md-8 col-lg-5 mx-auto">
-                    <div class="d-grid gap-2">
-                      <button type="button" id="submitServiceRequest" class="btn btn-primary btn-lg py-3"><i class="bi bi-check-circle me-2"></i>Soumettre la demande</button>
-                      <button type="button" id="closeServiceForm" class="btn btn-outline-secondary py-2"><i class="bi bi-x-circle me-2"></i>Annuler</button>
-                    </div>
-                  </div>
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                  <button type="button" class="btn btn-outline-secondary" onclick="document.querySelector('.service-request-form .btn-close').click()">
+                    <i class="bi bi-x-circle me-2"></i>Annuler
+                  </button>
+                  <button type="submit" class="btn btn-primary" id="submitServiceRequest">
+                    <i class="bi bi-check-circle me-2"></i>Soumettre la demande
+                  </button>
                 </div>
               </form>
             </div>
@@ -1862,729 +2697,461 @@
       </div>
     </div>
   </div>
-
-  <!-- Service Request Modal -->
-  <div class="modal fade" id="serviceRequestModal" tabindex="-1" aria-labelledby="serviceRequestModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="serviceRequestModalLabel">Nouvelle demande</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <form id="serviceRequestForm">
-            {% csrf_token %}
-            <input type="hidden" id="serviceType" name="serviceType" value="">
-            
-            <!-- Service title -->
-            <div class="mb-4">
-              <h4 id="serviceTitle" class="mb-3 text-primary"></h4>
-              <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i>
-                <span id="serviceDescription"></span>
-              </div>
-            </div>
-            
-            <!-- Common fields for all services -->
-            <div class="mb-3">
-              <label for="requestTitle" class="form-label">Titre de votre demande</label>
-              <input type="text" class="form-control" id="requestTitle" name="requestTitle" required>
-            </div>
-            
-            <!-- Service-specific fields - Administrative -->
-            <div id="adminFields" class="service-fields" style="display: none;">
-              <div class="mb-3">
-                <label for="adminDocumentType" class="form-label">Type de document</label>
-                <select class="form-select" id="adminDocumentType" name="adminDocumentType">
-                  <option value="">Sélectionner un type de document</option>
-                  <option value="passeport">Passeport</option>
-                  <option value="carte_nationale">Carte Nationale d'Identité</option>
-                  <option value="acte_naissance">Acte de Naissance</option>
-                  <option value="certificat_residence">Certificat de Résidence</option>
-                  <option value="autre">Autre</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label for="adminUrgency" class="form-label">Niveau d'urgence</label>
-                <select class="form-select" id="adminUrgency" name="adminUrgency">
-                  <option value="normale">Normale</option>
-                  <option value="urgente">Urgente</option>
-                  <option value="tres_urgente">Très urgente</option>
-                </select>
-              </div>
-            </div>
-            
-            <!-- Service-specific fields - Tourism -->
-            <div id="tourismeFields" class="service-fields" style="display: none;">
-              <div class="mb-3">
-                <label for="tourismType" class="form-label">Type de service touristique</label>
-                <select class="form-select" id="tourismType" name="tourismType">
-                  <option value="">Sélectionner un service</option>
-                  <option value="reservation_hotel">Réservation d'hôtel</option>
-                  <option value="circuit_touristique">Circuit touristique</option>
-                  <option value="location_voiture">Location de voitures</option>
-                  <option value="guide_touristique">Guide touristique</option>
-                  <option value="autre">Autre</option>
-                </select>
-              </div>
-              <div class="row">
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="dateArrivee" class="form-label">Date d'arrivée</label>
-                    <input type="date" class="form-control" id="dateArrivee" name="dateArrivee">
-                  </div>
-                </div>
-                <div class="col-md-6">
-                  <div class="mb-3">
-                    <label for="dateDepart" class="form-label">Date de départ</label>
-                    <input type="date" class="form-control" id="dateDepart" name="dateDepart">
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Service-specific fields - Real Estate -->
-            <div id="immobilierFields" class="service-fields" style="display: none;">
-              <div class="mb-3">
-                <label for="immobilierType" class="form-label">Type de service immobilier</label>
-                <select class="form-select" id="immobilierType" name="immobilierType">
-                  <option value="">Sélectionner un service</option>
-                  <option value="achat">Achat de bien</option>
-                  <option value="vente">Vente de bien</option>
-                  <option value="location">Location</option>
-                  <option value="gestion_bien">Gestion de bien</option>
-                  <option value="conseil">Conseil immobilier</option>
-                  <option value="autre">Autre</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label for="propertyType" class="form-label">Type de bien</label>
-                <select class="form-select" id="propertyType" name="propertyType">
-                  <option value="">Sélectionner un type de bien</option>
-                  <option value="appartement">Appartement</option>
-                  <option value="maison">Maison</option>
-                  <option value="villa">Villa</option>
-                  <option value="terrain">Terrain</option>
-                  <option value="commerce">Local commercial</option>
-                  <option value="bureau">Bureau</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label for="propertyLocation" class="form-label">Ville</label>
-                <select class="form-select" id="propertyLocation" name="propertyLocation">
-                  <option value="">Sélectionner une ville</option>
-                  <option value="casablanca">Casablanca</option>
-                  <option value="rabat">Rabat</option>
-                  <option value="marrakech">Marrakech</option>
-                  <option value="tanger">Tanger</option>
-                  <option value="agadir">Agadir</option>
-                  <option value="fes">Fès</option>
-                  <option value="autre">Autre</option>
-                </select>
-              </div>
-            </div>
-            
-            <!-- Service-specific fields - Fiscal -->
-            <div id="fiscalFields" class="service-fields" style="display: none;">
-              <div class="mb-3">
-                <label for="fiscalType" class="form-label">Type de service fiscal</label>
-                <select class="form-select" id="fiscalType" name="fiscalType">
-                  <option value="">Sélectionner un service</option>
-                  <option value="declaration_impots">Déclaration d'impôts</option>
-                  <option value="optimisation_fiscale">Optimisation fiscale</option>
-                  <option value="conseil_fiscal">Conseil fiscal</option>
-                  <option value="contentieux_fiscal">Contentieux fiscal</option>
-                  <option value="autre">Autre</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label for="fiscalYear" class="form-label">Année fiscale concernée</label>
-                <select class="form-select" id="fiscalYear" name="fiscalYear">
-                  <option value="2025">2025</option>
-                  <option value="2024">2024</option>
-                  <option value="2023">2023</option>
-                  <option value="2022">2022</option>
-                  <option value="autre">Autre</option>
-                </select>
-              </div>
-            </div>
-            
-            <!-- Service-specific fields - Investment -->
-            <div id="investissementFields" class="service-fields" style="display: none;">
-              <div class="mb-3">
-                <label for="investType" class="form-label">Type d'investissement</label>
-                <select class="form-select" id="investType" name="investType">
-                  <option value="">Sélectionner un type d'investissement</option>
-                  <option value="immobilier">Immobilier</option>
-                  <option value="commerce">Commerce</option>
-                  <option value="industrie">Industrie</option>
-                  <option value="agriculture">Agriculture</option>
-                  <option value="technologie">Technologie</option>
-                  <option value="autre">Autre</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label for="investBudget" class="form-label">Budget approximatif (MAD)</label>
-                <select class="form-select" id="investBudget" name="investBudget">
-                  <option value="moins_500k">Moins de 500 000</option>
-                  <option value="500k_1m">500 000 - 1 000 000</option>
-                  <option value="1m_3m">1 000 000 - 3 000 000</option>
-                  <option value="3m_5m">3 000 000 - 5 000 000</option>
-                  <option value="plus_5m">Plus de 5 000 000</option>
-                </select>
-              </div>
-            </div>
-            
-            <!-- Description field for all services -->
-            <div class="mb-3">
-              <label for="requestDescription" class="form-label">Description détaillée de votre demande</label>
-              <textarea class="form-control" id="requestDescription" name="requestDescription" rows="5" required></textarea>
-            </div>
-            
-            <!-- File upload field -->
-            <div class="mb-3">
-              <label for="requestFiles" class="form-label">Documents complémentaires (optionnel)</label>
-              <input class="form-control" type="file" id="requestFiles" name="requestFiles" multiple>
-              <div class="form-text">Vous pouvez joindre plusieurs documents (PDF, images, etc.)</div>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-          <button type="button" class="btn btn-primary" id="submitServiceRequest">Soumettre la demande</button>
+  
+  <!-- Success Alert (Hidden by default) -->
+  <div class="alert-container" style="display: none; position: fixed; top: 30px; left: 50%; transform: translateX(-50%); z-index: 1060; width: 90%; max-width: 500px;">
+    <div class="alert alert-success alert-dismissible fade shadow" role="alert" id="successAlert">
+      <div class="d-flex align-items-center">
+        <i class="bi bi-check-circle-fill fs-4 me-2"></i>
+        <div>
+          <strong>Demande soumise avec succès!</strong>
+          <p class="mb-0 small">Votre demande a été enregistrée. Nous la traiterons dans les plus brefs délais.</p>
         </div>
       </div>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
   </div>
 
-  <!-- Vendor JS Files -->
-  <script src="../../static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-  <script src="../../static/vendor/aos/aos.js"></script>
-  <script src="../../static/vendor/glightbox/js/glightbox.min.js"></script>
-  <script src="../../static/vendor/swiper/swiper-bundle.min.js"></script>
-  
-  <!-- Calendar JS -->
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.0/main.min.js"></script>
+    </main>
+</div>
 
-  <!-- Main JS File -->
-  <script src="../../static/js/main.js"></script>
-  
-  <!-- Custom Scripts -->
-  <script>
-    // Initialize AOS
-    AOS.init({
-      duration: 1000,
-      easing: 'ease-in-out',
-      once: true,
-      mirror: false
-    });
+<!-- Bootstrap JS and Popper.js -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    // Toggle sidebar on mobile
-    document.querySelector('.btn-outline-primary').addEventListener('click', function() {
-      document.querySelector('.sidebar').classList.toggle('active');
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Custom JS -->
+<script>
+  // ... (rest of the code remains unchanged)
+</script>
+
+{% block extra_js %}
+<script>
+  // Déclaration des fonctions globales
+  window.showServiceRequestModal = function(serviceType) {
+    console.log('showServiceRequestModal appelé avec:', serviceType);
+    showServiceRequestForm(serviceType);
+  };
+
+  // Fonction pour ouvrir le formulaire de demande de service à pleine page
+  function showServiceRequestForm(serviceType) {
+    console.log('Affichage du formulaire pour le service:', serviceType);
+    
+    const serviceRequestForm = document.getElementById('serviceRequestFullForm');
+    const mainContent = document.querySelector('.main-content');
+    
+    if (!serviceRequestForm) {
+      console.error('Formulaire de service non trouvé!');
+      return;
+    }
+    
+    // Réinitialiser le formulaire
+    const form = document.getElementById('serviceRequestForm');
+    if (form) {
+      form.reset();
+    }
+    
+    // Cacher tous les champs spécifiques
+    document.querySelectorAll('.service-fields').forEach(field => {
+      field.style.display = 'none';
     });
     
-    // Toggle notifications dropdown
-    function toggleNotifications() {
-      console.log("Toggle notifications clicked");
-      const dropdown = document.getElementById('notificationDropdown');
-      if (dropdown) {
-        dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-        console.log("Dropdown toggled, display:", dropdown.style.display);
+    // Définir le type de service et mettre à jour le formulaire
+    const serviceTypeInput = document.getElementById('serviceType');
+    const formTitle = document.getElementById('formServiceTitle');
+    if (serviceTypeInput) serviceTypeInput.value = serviceType;
+    if (formTitle) formTitle.textContent = serviceType;
+    
+    // Afficher les champs spécifiques en fonction du type
+    let fieldsToShow = '';
+    let serviceDescription = '';
+    
+    // Normaliser le type de service pour la correspondance
+    const normalizedServiceType = serviceType.toLowerCase()
+      .replace(/^service\s+/i, '')
+      .replace(/\s+service$/i, '')
+      .replace(/\s+services$/i, '')
+      .replace(/\s+basic$/i, '')
+      .replace(/\s+premium$/i, '')
+      .trim();
+    
+    console.log('Type de service normalisé:', normalizedServiceType);
+    
+    // Correspondance plus robuste des types de services
+    if (normalizedServiceType.includes('administratif') || normalizedServiceType.includes('administrative') || normalizedServiceType.includes('services administratifs')) {
+      fieldsToShow = 'adminFields';
+      serviceDescription = 'Demandez des documents officiels, des attestations ou tout autre service administratif.';
+    } else if (normalizedServiceType.includes('tourisme') || normalizedServiceType.includes('tourism') || normalizedServiceType.includes('touristique')) {
+      fieldsToShow = 'tourismeFields';
+      serviceDescription = 'Réservations d\'hôtels, circuits touristiques, location de voitures et autres services touristiques.';
+    } else if (normalizedServiceType.includes('immobilier') || normalizedServiceType.includes('real estate') || normalizedServiceType.includes('property')) {
+      fieldsToShow = 'immobilierFields';
+      serviceDescription = 'Services d\'achat, vente, location ou gestion de biens immobiliers.';
+    } else if (normalizedServiceType.includes('fiscal') || normalizedServiceType.includes('fiscalité') || normalizedServiceType.includes('tax')) {
+      fieldsToShow = 'fiscalFields';
+      serviceDescription = 'Déclarations fiscales, optimisation fiscale, conseils et assistance pour vos impôts.';
+    } else if (normalizedServiceType.includes('investissement') || normalizedServiceType.includes('investment')) {
+      fieldsToShow = 'investissementFields';
+      serviceDescription = 'Conseils et accompagnement pour vos projets d\'investissement au Maroc.';
+    } else {
+      console.warn('Type de service non reconnu:', serviceType, '(normalisé:', normalizedServiceType, ')');
+      serviceDescription = 'Veuillez spécifier les détails de votre demande dans la description.';
+    }
+    
+    // Afficher les champs pertinents
+    if (fieldsToShow) {
+      const fieldsElement = document.getElementById(fieldsToShow);
+      if (fieldsElement) {
+        fieldsElement.style.display = 'block';
+        console.log('Affichage des champs pour:', fieldsToShow);
       } else {
-        console.error("Notification dropdown element not found");
+        console.error('Élément', fieldsToShow, 'non trouvé!');
       }
     }
     
-    // Configurer les gestionnaires d'événements pour les notifications
-    document.addEventListener('DOMContentLoaded', function() {
-      // Récupère les éléments
-      const notificationButton = document.getElementById('notificationButton');
-      const notificationDropdown = document.getElementById('notificationDropdown');
-      
-      // Fonction pour afficher/cacher le dropdown de notifications
-      if (notificationButton && notificationDropdown) {
-        notificationButton.addEventListener('click', function(e) {
-          // Empêche l'événement de se propager
-          e.stopPropagation();
-          
-          // Inverse l'état d'affichage du dropdown
-          if (notificationDropdown.style.display === 'block') {
-            notificationDropdown.style.display = 'none';
-          } else {
-            notificationDropdown.style.display = 'block';
-          }
-        });
-        
-        // Ferme le dropdown quand on clique ailleurs
-        document.addEventListener('click', function(e) {
-          if (notificationDropdown.style.display === 'block') {
-            notificationDropdown.style.display = 'none';
-          }
-        });
-        
-        // Empêche la fermeture quand on clique dans le dropdown
-        notificationDropdown.addEventListener('click', function(e) {
-          e.stopPropagation();
-        });
-      }
-      
-      // Profile edit functionality
-      const editProfileBtn = document.getElementById('editProfileBtn');
-      const profileEditForm = document.getElementById('profileEditForm');
-      const closeProfileForm = document.getElementById('closeProfileForm');
-      const userProfileForm = document.getElementById('userProfileForm');
-      const successAlert = document.getElementById('successAlert');
-      const alertContainer = document.querySelector('.alert-container');
-      const mainContent = document.querySelector('.main-content');
-      
-      // Show profile edit form when clicking the button
-      if (editProfileBtn) {
-        editProfileBtn.addEventListener('click', function(e) {
-          e.preventDefault();
-          
-          // Remove active class from other menu items and set current one active
-          const allMenuItems = document.querySelectorAll('.sidebar-menu a');
-          allMenuItems.forEach(item => {
-            // Check if item is not the current editProfileBtn and does not have a special no-deactivate class/id if needed
-            if (item !== e.currentTarget) { 
-              item.classList.remove('active');
-            }
-          });
-          e.currentTarget.classList.add('active');
-          // Consider adding data-active attribute if your CSS or other JS relies on it
-          // e.currentTarget.setAttribute('data-active', 'true');
-          
-          // Hide any potential overflow content from main content
-          if (mainContent) {
-            mainContent.style.visibility = 'hidden';
-          }
-          
-          // Show the form with animation
-          profileEditForm.style.display = 'block';
-          setTimeout(() => {
-            profileEditForm.classList.add('show');
-          }, 50);
-        });
-      }
-      
-      // Close profile edit form
-      if (closeProfileForm) {
-        closeProfileForm.addEventListener('click', function() {
-          profileEditForm.classList.remove('show');
-          setTimeout(() => {
-            profileEditForm.style.display = 'none';
-            // Restore main content visibility
-            if (mainContent) {
-              mainContent.style.visibility = 'visible';
-            }
-          }, 300);
-        });
-      }
-      
-      // Form validation
-      if (userProfileForm) {
-        userProfileForm.addEventListener('submit', function(e) {
-          e.preventDefault();
-          
-          // Check form validity
-          if (!this.checkValidity()) {
-            e.stopPropagation();
-            this.classList.add('was-validated');
-            return;
-          }
-          
-          // Get form data
-          const formData = new FormData(userProfileForm);
-          
-          // Show loading state on button
-          const submitButton = userProfileForm.querySelector('button[type="submit"]');
-          const originalButtonText = submitButton.innerHTML;
-          submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Enregistrement...';
-          submitButton.disabled = true;
-          
-          // Simulate an AJAX request with a timeout
-          setTimeout(function() {
-            // Return button to normal state
-            submitButton.innerHTML = originalButtonText;
-            submitButton.disabled = false;
-            
-            // Hide the form with animation
-            profileEditForm.classList.remove('show');
-            setTimeout(() => {
-              profileEditForm.style.display = 'none';
-              // Restore main content visibility
-              if (mainContent) {
-                mainContent.style.visibility = 'visible';
-              }
-            }, 300);
-            
-            // Update user information in the sidebar
-            const sidebarName = document.querySelector('.sidebar-profile h5');
-            if (sidebarName) {
-              sidebarName.textContent = formData.get('name') + ' ' + formData.get('first_name');
-            }
-            
-            // Show success message with animation
-            alertContainer.style.display = 'block';
-            successAlert.classList.add('show');
-            
-            // Hide success message after 5 seconds
-            setTimeout(function() {
-              successAlert.classList.remove('show');
-              setTimeout(function() {
-                alertContainer.style.display = 'none';
-              }, 300);
-            }, 5000);
-            
-          }, 1000);
-          
-          this.classList.remove('was-validated');
-        });
-      }
-
-      // Add event listeners to dropdown service items
-      const dropdownItems = document.querySelectorAll('.dropdown-item[data-service]');
-      dropdownItems.forEach(item => {
-        item.addEventListener('click', function(e) {
-          e.preventDefault();
-          const serviceType = this.getAttribute('data-service');
-          showServiceRequestModal(serviceType);
-        });
-      });
-      
-      // Form submission for service request
-      document.getElementById('submitServiceRequest').addEventListener('click', function() {
-        const form = document.getElementById('serviceRequestForm');
-        if (!form.checkValidity()) {
-          form.reportValidity();
-          return;
+    // Définir la description du service
+    const formDescription = document.getElementById('formServiceDescription');
+    if (formDescription) {
+      formDescription.textContent = serviceDescription;
+    }
+    
+    // Cacher le contenu principal
+    if (mainContent) {
+      mainContent.style.visibility = 'hidden';
+    }
+    
+    // Afficher le formulaire avec animation
+    serviceRequestForm.style.display = 'block';
+    setTimeout(() => {
+      serviceRequestForm.style.opacity = '1';
+      serviceRequestForm.style.transform = 'translateY(0)';
+    }, 10);
+  }
+  
+  // Initialisation des gestionnaires d'événements
+  function initializeEventHandlers() {
+    console.log('Initialisation des gestionnaires d\'événements pour dashboard...');
+    
+    // Gestionnaires pour les éléments du menu déroulant
+    const dropdownItems = document.querySelectorAll('#newRequestDropdown + .dropdown-menu .dropdown-item[data-service]');
+    console.log('Nombre d\'éléments dropdown trouvés dans le dashboard:', dropdownItems.length);
+    
+    dropdownItems.forEach(item => {
+      item.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const serviceType = this.getAttribute('data-service');
+        console.log('Option de service cliquée sur dashboard:', serviceType);
+        showServiceRequestForm(serviceType);
+        var dropdown = bootstrap.Dropdown.getInstance(this.closest('.dropdown-toggle'));
+        if (dropdown) {
+            dropdown.hide();
         }
-        
-        // Collect form data
-        const formData = new FormData(form);
-        
-        // Add files if any
-        const fileInput = document.getElementById('requestFiles');
-        if (fileInput.files.length > 0) {
-          for (let i = 0; i < fileInput.files.length; i++) {
-            formData.append('files[]', fileInput.files[i]);
-          }
-        }
-        
-        // Show loading state
-        const submitButton = this;
-        const originalButtonText = submitButton.innerHTML;
-        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Traitement...';
-        submitButton.disabled = true;
-        
-        // Send data to the server
-        fetch('/requests/ajax/create-request/', {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'X-CSRFToken': getCookie('csrftoken'),
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        })
-        .then(response => response.json())
-        .then(data => {
-          // Si on utilise le formulaire pleine page
-          const serviceRequestFullForm = document.getElementById('serviceRequestFullForm');
-          if (serviceRequestFullForm && serviceRequestFullForm.style.display !== 'none') {
-            // Cacher le formulaire pleine page
-            serviceRequestFullForm.classList.remove('show');
-            setTimeout(() => {
-              serviceRequestFullForm.style.display = 'none';
-              // Restore main content visibility
-              const mainContent = document.querySelector('.main-content');
-              if (mainContent) {
-                mainContent.style.visibility = 'visible';
-              }
-            }, 300);
-          } else {
-            // Cacher le modal (ancien système)
-            const modal = bootstrap.Modal.getInstance(document.getElementById('serviceRequestModal'));
-            if (modal) modal.hide();
-          }
-          
-          if (data.success) {
-            // Show success alert
-            alertContainer.style.display = 'block';
-            successAlert.classList.add('show');
-            
-            // Hide success message after 5 seconds
-            setTimeout(function() {
-              successAlert.classList.remove('show');
-              setTimeout(function() {
-                alertContainer.style.display = 'none';
-              }, 300);
-            }, 5000);
-            
-            // Reload page after 2 seconds to show new request
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
-          } else {
-            // Show error message
-            alert('Erreur lors de la création de la demande: ' + (data.message || 'Erreur inconnue'));
-          }
-          
-          // Reset button
-          submitButton.innerHTML = originalButtonText;
-          submitButton.disabled = false;
-        })
-        .catch(error => {
-          console.error('Erreur:', error);
-          alert('Erreur lors de la communication avec le serveur. Veuillez réessayer.');
-          submitButton.innerHTML = originalButtonText;
-          submitButton.disabled = false;
-        });
       });
-      
-      // Bouton de fermeture du formulaire pleine page
-      const closeServiceFormBtn = document.getElementById('closeServiceForm');
-      if (closeServiceFormBtn) {
-        closeServiceFormBtn.addEventListener('click', function() {
-          const serviceRequestForm = document.getElementById('serviceRequestFullForm');
-          const mainContent = document.querySelector('.main-content');
-          
-          serviceRequestForm.classList.remove('show');
-          
+    });
+    
+    // Gestionnaires pour les cartes de service
+    const serviceCards = document.querySelectorAll('.service-card[data-service]');
+    console.log('Nombre de cartes de service trouvées dans le dashboard:', serviceCards.length);
+    
+    serviceCards.forEach(card => {
+      card.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const serviceType = this.getAttribute('data-service');
+        console.log('Carte de service cliquée sur dashboard:', serviceType);
+        showServiceRequestForm(serviceType);
+      });
+    });
+    
+    // Gestionnaires pour les éléments du dropdown "createRequestBtn"
+    const createRequestDropdownItems = document.querySelectorAll('#createRequestBtn + .dropdown-menu .dropdown-item[data-service]');
+    console.log('Nombre d\'éléments dropdown "createRequestBtn" trouvés dans le dashboard:', createRequestDropdownItems.length);
+    
+    createRequestDropdownItems.forEach(item => {
+      item.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const serviceType = this.getAttribute('data-service');
+        console.log('Option de service "createRequestBtn" cliquée sur dashboard:', serviceType);
+        showServiceRequestForm(serviceType);
+        var dropdown = bootstrap.Dropdown.getInstance(document.getElementById('createRequestBtn'));
+        if (dropdown) {
+            dropdown.hide();
+        }
+      });
+    });
+    
+    const closeButton = document.querySelector('#serviceRequestFullForm .btn-close');
+    if (closeButton) {
+      console.log('Bouton de fermeture du formulaire trouvé sur dashboard');
+      closeButton.addEventListener('click', function() {
+        console.log('Fermeture du formulaire sur dashboard');
+        const serviceRequestForm = document.getElementById('serviceRequestFullForm');
+        const mainContent = document.querySelector('.main-content');
+        
+        if (serviceRequestForm) {
+          serviceRequestForm.style.opacity = '0';
+          serviceRequestForm.style.transform = 'translateY(10px)';
           setTimeout(() => {
             serviceRequestForm.style.display = 'none';
-            // Restaurer la visibilité du contenu principal
-            if (mainContent) {
-              mainContent.style.visibility = 'visible';
-            }
           }, 300);
-        });
-      }
-    });
-    
-    // Function to show service request modal (ancien code maintenu pour compatibilité)
-    function showServiceRequestModal(serviceType) {
-      // Remplacer par la nouvelle fonction pour utiliser le formulaire pleine page
-      showServiceRequestForm(serviceType);
-    }
-    
-    // Fonction pour afficher le formulaire de demande de service à pleine page
-    function showServiceRequestForm(serviceType) {
-      console.log('Affichage du formulaire pour le service:', serviceType);
-      
-      const serviceRequestForm = document.getElementById('serviceRequestFullForm');
-      const mainContent = document.querySelector('.main-content');
-      
-      if (!serviceRequestForm) {
-        console.error('Formulaire de service non trouvé!');
-        return;
-      }
-      
-      // Réinitialiser le formulaire
-      document.getElementById('serviceRequestForm').reset();
-      
-      // Cacher tous les champs spécifiques
-      document.querySelectorAll('.service-fields').forEach(field => {
-        field.style.display = 'none';
-      });
-      
-      // Définir le type de service et mettre à jour le formulaire
-      document.getElementById('serviceType').value = serviceType;
-      document.getElementById('formServiceTitle').textContent = serviceType;
-      
-      // Afficher les champs spécifiques en fonction du type
-      let fieldsToShow = '';
-      let serviceDescription = '';
-      
-      switch(serviceType) {
-        case 'Service Administratif':
-        case 'Services Administratifs':
-          fieldsToShow = 'adminFields';
-          serviceDescription = 'Demandez des documents officiels, des attestations ou tout autre service administratif.';
-          break;
-        case 'Service Tourisme':
-        case 'Tourisme':
-          fieldsToShow = 'tourismeFields';
-          serviceDescription = 'Réservations d\'hôtels, circuits touristiques, location de voitures et autres services touristiques.';
-          break;
-        case 'Service Immobilier':
-        case 'Immobilier':
-          fieldsToShow = 'immobilierFields';
-          serviceDescription = 'Services d\'achat, vente, location ou gestion de biens immobiliers.';
-          break;
-        case 'Service Fiscal':
-        case 'Fiscalité':
-          fieldsToShow = 'fiscalFields';
-          serviceDescription = 'Déclarations fiscales, optimisation fiscale, conseils et assistance pour vos impôts.';
-          break;
-        case 'Service Investissement':
-        case 'Investissement':
-          fieldsToShow = 'investissementFields';
-          serviceDescription = 'Conseils et accompagnement pour vos projets d\'investissement au Maroc.';
-          break;
-        default:
-          serviceDescription = 'Veuillez spécifier les détails de votre demande dans la description.';
-      }
-      
-      // Afficher les champs pertinents
-      if (fieldsToShow) {
-        const fieldsElement = document.getElementById(fieldsToShow);
-        if (fieldsElement) {
-          fieldsElement.style.display = 'block';
-        } else {
-          console.error('Élément', fieldsToShow, 'non trouvé!');
         }
-      }
-      
-      // Définir la description du service
-      document.getElementById('formServiceDescription').textContent = serviceDescription;
-      
-      // Cacher le contenu principal
-      if (mainContent) {
-        mainContent.style.visibility = 'hidden';
-      }
-      
-      // Afficher le formulaire avec animation
-      serviceRequestForm.style.display = 'block';
-      setTimeout(() => {
-        serviceRequestForm.classList.add('show');
-      }, 50);
+        
+        if (mainContent) {
+          mainContent.style.visibility = 'visible';
+        }
+      });
+    } else {
+      console.error('Bouton de fermeture du formulaire non trouvé sur dashboard (#serviceRequestFullForm .btn-close)');
     }
-    
-    // Fonction pour marquer une notification comme lue et rediriger
-    function markSingleNotificationAsRead(notificationId, redirectUrl) {
-      // Si c'est une notification de démonstration (sans backend), simuler simplement
-      if (notificationId.startsWith('demo')) {
-        // Simuler une notification marquée comme lue
-        const notificationItems = document.querySelectorAll('.notification-item.unread');
-        notificationItems.forEach(item => {
-          if (item.getAttribute('onclick').includes(notificationId)) {
-            item.classList.remove('unread');
-            const newBadge = item.querySelector('.badge.bg-danger');
-            if (newBadge) newBadge.remove();
+
+    const serviceForm = document.getElementById('serviceRequestForm');
+    if (serviceForm) {
+        serviceForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('Formulaire de demande soumis sur dashboard');
+            const formData = new FormData(this);
             
-            // Mettre à jour les compteurs
-            updateNotificationCounters();
+            // Ajouter le type de service au formData
+            const serviceType = document.getElementById('serviceType').value;
+            formData.append('serviceType', serviceType);
+            
+            // Envoyer les données au serveur
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (closeButton) closeButton.click();
+                    const successAlert = document.getElementById('successAlert');
+                    const alertContainer = document.querySelector('.alert-container');
+                    if (successAlert && alertContainer) {
+                        alertContainer.style.display = 'block';
+                        successAlert.classList.add('show');
+                        setTimeout(() => {
+                            successAlert.classList.remove('show');
+                            setTimeout(() => {
+                                alertContainer.style.display = 'none';
+                                // Rediriger vers la page des demandes après le succès
+                                window.location.href = '{% url "client_demandes" %}';
+                            }, 150);
+                        }, 2000);
+                    }
+                } else {
+                    // Afficher une erreur si la soumission a échoué
+                    alert(data.message || 'Une erreur est survenue lors de la soumission de votre demande. Veuillez réessayer.');
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de la soumission:', error);
+                alert('Une erreur est survenue lors de la soumission de votre demande. Veuillez réessayer.');
+            });
+        });
+    }
+  }
+
+  // Gestionnaire pour les notifications
+  function initializeNotificationHandlers() {
+    const notificationButton = document.getElementById('notificationButton');
+    const notificationDropdown = document.getElementById('notificationDropdown');
+    
+    if (notificationButton && notificationDropdown) {
+      // Afficher/masquer le menu déroulant des notifications
+      notificationButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const isHidden = notificationDropdown.style.display === 'none';
+        
+        // Fermer tous les autres menus déroulants
+        document.querySelectorAll('.dropdown-menu.show, [id$="Dropdown"].show').forEach(el => {
+          if (el !== notificationDropdown) {
+            el.classList.remove('show');
+            el.style.display = 'none';
           }
         });
         
-        // Rediriger après un court délai
-        setTimeout(() => {
-          window.location.href = redirectUrl;
-        }, 300);
-        return;
-      }
+        // Basculer l'affichage du menu de notification
+        notificationDropdown.style.display = isHidden ? 'block' : 'none';
+        
+        if (isHidden) {
+          // Marquer les notifications comme lues lors de l'ouverture
+          markNotificationsAsRead();
+        }
+      });
       
-      // Pour les vraies notifications (avec backend)
-      fetch('/api/notifications/mark-read/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: JSON.stringify({
-          notification_id: notificationId,
-          mark_all: false
-        })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // Mettre à jour l'interface
-          updateNotificationCounters();
+      // Fermer le menu déroulant lors d'un clic en dehors
+      document.addEventListener('click', function(e) {
+        if (!notificationButton.contains(e.target) && !notificationDropdown.contains(e.target)) {
+          notificationDropdown.style.display = 'none';
+        }
+      });
+      
+      // Empêcher la fermeture lors d'un clic dans le menu
+      notificationDropdown.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    }
+  }
+  
+  // Fonction pour marquer les notifications comme lues
+  function markNotificationsAsRead() {
+    fetch('{% url "custom_requests:mark_all_notifications_read" %}', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Mettre à jour le compteur de notifications non lues
+        const badge = document.querySelector('#notificationButton .badge');
+        if (badge) {
+          badge.textContent = '0';
+          badge.classList.remove('bg-danger');
+          badge.classList.add('bg-secondary');
         }
         
-        // Rediriger dans tous les cas
-        window.location.href = redirectUrl;
-      })
-      .catch(error => {
-        console.error('Erreur:', error);
-        // Rediriger quand même en cas d'erreur
-        window.location.href = redirectUrl;
-      });
-    }
-    
-    // Fonction pour marquer toutes les notifications comme lues
-    function markNotificationsAsRead() {
-      const unreadBadge = document.getElementById('unreadBadge');
-      if (!unreadBadge) return;
-      
-      // Pour les notifications de démonstration
-      const demoItems = document.querySelectorAll('.notification-item.unread');
-      demoItems.forEach(item => {
-        item.classList.remove('unread');
-        const newBadge = item.querySelector('.badge.bg-danger');
-        if (newBadge) newBadge.remove();
-      });
-      
-      // Mettre à jour les compteurs de notification
-      updateNotificationCounters();
-      
-      // Appel à l'API pour les vraies notifications
-      fetch('/api/notifications/mark-read/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: JSON.stringify({
-          mark_all: true
-        })
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (!data.success) {
-          console.error('Erreur lors du marquage des notifications:', data.message);
+        // Mettre à jour le compteur dans l'en-tête
+        const headerBadge = document.querySelector('#notificationDropdown .badge');
+        if (headerBadge) {
+          headerBadge.textContent = '0 non lue(s)';
         }
-      })
-      .catch(error => {
-        console.error('Erreur:', error);
+        
+        // Supprimer les marqueurs "Nouveau"
+        document.querySelectorAll('.notification-new-badge').forEach(el => el.remove());
+        document.querySelectorAll('.notification-unread').forEach(el => {
+          el.classList.remove('notification-unread');
+        });
+      }
+    })
+    .catch(error => console.error('Erreur lors du marquage des notifications comme lues:', error));
+  }
+  
+  // Gestionnaire pour le bouton Modifier le profil
+  function initializeProfileButton() {
+    const editProfileBtn = document.getElementById('editProfileBtn');
+    const profileEditForm = document.getElementById('profileEditForm');
+    const closeProfileForm = document.getElementById('closeProfileForm');
+    const mainContent = document.querySelector('.main-content');
+    
+    if (editProfileBtn && profileEditForm) {
+      editProfileBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Afficher le formulaire avec animation
+        profileEditForm.style.display = 'block';
+        setTimeout(() => {
+          profileEditForm.style.opacity = '1';
+          profileEditForm.style.transform = 'translateY(0)';
+        }, 10);
+        
+        // Masquer le contenu principal
+        if (mainContent) {
+          mainContent.style.visibility = 'hidden';
+        }
       });
     }
     
-    // Mettre à jour les compteurs de notification
-    function updateNotificationCounters() {
-      const unreadCount = document.querySelectorAll('.list-group-item-action.unread').length;
-      
-      // Mettre à jour le badge du dropdown
-      const unreadBadge = document.getElementById('unreadBadge');
-      if (unreadBadge) {
-        unreadBadge.textContent = unreadCount + ' non lue(s)';
-      }
-      
-      // Mettre à jour le badge de notification
-      const notificationBadge = document.querySelector('.notification-badge');
-      if (notificationBadge) {
-        if (unreadCount > 0) {
-          notificationBadge.textContent = unreadCount;
-          notificationBadge.style.display = 'flex';
-        } else {
-          notificationBadge.style.display = 'none';
-        }
-      }
-    }
-    
-    // Function to get CSRF token from cookies
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === (name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
+    // Gestionnaire pour le bouton de fermeture du formulaire
+    if (closeProfileForm) {
+      closeProfileForm.addEventListener('click', function() {
+        // Masquer le formulaire avec animation
+        profileEditForm.style.opacity = '0';
+        profileEditForm.style.transform = 'translateY(10px)';
+        
+        // Afficher le contenu principal après l'animation
+        setTimeout(() => {
+          profileEditForm.style.display = 'none';
+          if (mainContent) {
+            mainContent.style.visibility = 'visible';
           }
+        }, 300);
+      });
+    }
+  }
+  
+  // Gestion du menu mobile
+  document.addEventListener('DOMContentLoaded', function() {
+    // Menu mobile toggle
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.sidebar');
+    
+    if (mobileMenuToggle && sidebar) {
+      mobileMenuToggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        sidebar.classList.toggle('show');
+      });
+      
+      // Fermer le menu en cliquant à l'extérieur
+      document.addEventListener('click', function(e) {
+        const profileMenuToggle = document.getElementById('profileSidebarToggle');
+        const isClickInsideProfileToggle = profileMenuToggle && profileMenuToggle.contains(e.target);
+        
+        if (window.innerWidth <= 992 && sidebar.classList.contains('show') && 
+            !sidebar.contains(e.target) && e.target !== mobileMenuToggle && !isClickInsideProfileToggle) {
+          sidebar.classList.remove('show');
         }
-      }
-      return cookieValue;
+      });
     }
     
-    // Nous avons déjà ajouté le gestionnaire de clic dans le chargement du DOM plus haut
-    // Function to redirect to create request page (keeping for compatibility)
-    function redirectToCreateRequest(serviceType) {
-      window.location.href = `/client/demandes/nouvelle/${serviceType}`;
+    // Fonctionnalité du bouton menu du formulaire de profil
+    const profileSidebarToggle = document.getElementById('profileSidebarToggle');
+    if (profileSidebarToggle) {
+      profileSidebarToggle.addEventListener('click', function() {
+        if (sidebar) {
+          sidebar.classList.toggle('show');
+        }
+      });
     }
-  </script>
+    
+    console.log('DOM dashboard chargé, initialisation des gestionnaires...');
+    initializeEventHandlers();
+    initializeNotificationHandlers();
+    initializeProfileButton();
+    
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) {
+      mainContent.style.visibility = 'visible';
+    }
+    
+    const serviceRequestForm = document.getElementById('serviceRequestFullForm');
+    if (serviceRequestForm) {
+      serviceRequestForm.style.display = 'none';
+      serviceRequestForm.style.opacity = '0';
+    }
+    
+    // Masquer le formulaire de profil au chargement
+    const profileEditForm = document.getElementById('profileEditForm');
+    if (profileEditForm) {
+      profileEditForm.style.display = 'none';
+      profileEditForm.style.opacity = '0';
+      profileEditForm.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+      profileEditForm.style.transform = 'translateY(10px)';
+    }
+  });
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    console.log('DOM dashboard déjà chargé, tentative d\'initialisation...');
+    // initializeEventHandlers(); // To prevent double calls if DOMContentLoaded also fires.
+  }
+</script>
+{% endblock %}
+
+<!-- FullCalendar JS (v5.10.0 for compatibility with CSS) -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.10.0/main.min.js"></script>
+<!-- Calendar Initialization -->
+<script src="{% static 'js/calendar-init.js' %}"></script>
+
 </body>
 </html>

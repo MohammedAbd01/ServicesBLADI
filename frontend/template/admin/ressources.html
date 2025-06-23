@@ -29,7 +29,7 @@
     <div class="col-md-4">
       <div class="stats-card">
         <div class="icon text-success">
-          <i class="bi bi-globe"></i>
+          <i class="bi bi-unlock"></i>
         </div>
         <div class="count">{{ stats.public }}</div>
         <div class="title">Ressources Publiques</div>
@@ -97,11 +97,15 @@
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start mb-2">
             <h5 class="card-title mb-0">{{ resource.title }}</h5>
-            {% if resource.is_public %}
-            <span class="badge bg-success">Public</span>
-            {% else %}
-            <span class="badge bg-warning">Privé</span>
-            {% endif %}
+            <div class="d-flex align-items-center">
+              {% if resource.is_active %}
+              <i class="bi bi-unlock text-success me-1"></i>
+              <span class="badge bg-success">Public</span>
+              {% else %}
+              <i class="bi bi-lock text-warning me-1"></i>
+              <span class="badge bg-warning">Privé</span>
+              {% endif %}
+            </div>
           </div>
           <p class="card-text text-muted small mb-2">Catégorie: {{ resource.category }}</p>
           <p class="card-text">{{ resource.description|truncatechars:100 }}</p>
@@ -113,12 +117,8 @@
               <a href="{% url 'admin_edit_resource' resource.id %}" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-pencil"></i>
               </a>
-              <a href="{% if resource.file %}{{ resource.file.url }}{% elif resource.url %}{{ resource.url }}{% else %}#{% endif %}" 
-                 class="btn btn-sm btn-outline-success" {% if resource.url %}target="_blank"{% endif %}>
-                <i class="bi bi-{% if resource.file %}download{% else %}link{% endif %}"></i>
-              </a>
               <a href="{% url 'admin_toggle_resource_visibility' resource.id %}" class="btn btn-sm btn-outline-warning">
-                <i class="bi bi-{% if resource.is_public %}lock{% else %}unlock{% endif %}"></i>
+                <i class="bi bi-{% if resource.is_active %}unlock{% else %}lock{% endif %}"></i>
               </a>
               <a href="{% url 'admin_delete_resource' resource.id %}" class="btn btn-sm btn-outline-danger"
                  onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette ressource?');">
@@ -219,9 +219,13 @@
               <div class="mb-3">
                 <label for="category" class="form-label">Catégorie</label>
                 <select class="form-select" id="category" name="category" required>
-                  {% for cat in categories %}
-                  <option value="{{ cat }}">{{ cat }}</option>
-                  {% endfor %}
+                  <option value="">Sélectionner une catégorie</option>
+                  <option value="administratif">Administratif</option>
+                  <option value="fiscal">Fiscal</option>
+                  <option value="investissement">Investissement</option>
+                  <option value="tourisme">Tourisme</option>
+                  <option value="immobilier">Immobilier</option>
+                  <option value="social">Social</option>
                 </select>
               </div>
             </div>
@@ -239,8 +243,8 @@
           </div>
           
           <div class="form-check mb-3">
-            <input type="checkbox" class="form-check-input" id="is_public" name="is_public" checked>
-            <label class="form-check-label" for="is_public">Ressource publique</label>
+            <input type="checkbox" class="form-check-input" id="is_active" name="is_active" checked>
+            <label class="form-check-label" for="is_active">Ressource publique</label>
           </div>
         </div>
         <div class="modal-footer">
@@ -251,8 +255,122 @@
     </div>
   </div>
 </div>
-{% endblock admin_content %}
-    }
+
+<!-- Edit Resource Modal -->
+<div class="modal fade" id="editResourceModal" tabindex="-1" aria-labelledby="editResourceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="editResourceForm" method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="editResourceModalLabel">Modifier la ressource</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-8">
+              <div class="mb-3">
+                <label for="edit_title" class="form-label">Titre</label>
+                <input type="text" class="form-control" id="edit_title" name="title" required>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="mb-3">
+                <label for="edit_category" class="form-label">Catégorie</label>
+                <select class="form-select" id="edit_category" name="category" required>
+                  <option value="">Sélectionner une catégorie</option>
+                  <option value="administrative">Administrative</option>
+                  <option value="fiscal">Fiscal</option>
+                  <option value="tourism">Tourisme</option>
+                  <option value="investment">Investissement</option>
+                  <option value="real_estate">Immobilier</option>
+                  <option value="legal">Juridique</option>
+                  <option value="social">Social</option>
+                  <option value="embassy">Ambassade/Consulat</option>
+                  <option value="guide">Guide</option>
+                  <option value="other">Autre</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="edit_description" class="form-label">Description</label>
+            <textarea class="form-control" id="edit_description" name="description" rows="3" required></textarea>
+          </div>
+          
+          <div class="mb-3">
+            <label for="edit_file" class="form-label">Fichier</label>
+            <input type="file" class="form-control" id="edit_file" name="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx">
+            <small class="form-text text-muted">Laissez vide pour conserver le fichier actuel.</small>
+          </div>
+          
+          <div class="mb-3">
+            <label for="edit_available_formats" class="form-label">Formats disponibles</label>
+            <select class="form-select" id="edit_available_formats" name="available_formats">
+              <option value="pdf">PDF</option>
+              <option value="doc">DOC/DOCX</option>
+              <option value="xls">XLS/XLSX</option>
+              <option value="ppt">PPT/PPTX</option>
+              <option value="image">Image</option>
+              <option value="video">Vidéo</option>
+              <option value="link">Lien externe</option>
+              <option value="text">Texte</option>
+            </select>
+          </div>
+          
+          <div class="form-check mb-3">
+            <input type="checkbox" class="form-check-input" id="edit_is_public" name="is_public">
+            <label class="form-check-label" for="edit_is_public">Ressource publique</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Gestionnaire pour le bouton d'édition
+  document.querySelectorAll('.btn-outline-primary').forEach(button => {
+    button.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      // Récupérer l'ID de la ressource depuis l'URL du bouton
+      const href = this.getAttribute('href');
+      const resourceId = href.match(/\/admin\/ressources\/(\d+)\/edit\//)?.[1];
+      
+      if (!resourceId) {
+        console.error('Impossible de récupérer l\'ID de la ressource');
+        return;
+      }
+
+      const resourceTitle = this.closest('.card').querySelector('.card-title').textContent;
+      const resourceCategory = this.closest('.card').querySelector('.text-muted').textContent.split(': ')[1];
+      const resourceDescription = this.closest('.card').querySelector('.card-text').textContent;
+      const isPublic = this.closest('.card').querySelector('.badge').textContent.trim() === 'Public';
+
+      // Remplir le formulaire d'édition
+      document.getElementById('edit_title').value = resourceTitle;
+      document.getElementById('edit_category').value = resourceCategory;
+      document.getElementById('edit_description').value = resourceDescription;
+      document.getElementById('edit_is_public').checked = isPublic;
+      
+      // Mettre à jour l'action du formulaire avec l'URL correcte
+      const form = document.getElementById('editResourceForm');
+      form.action = `/admin/ressources/${resourceId}/edit/`;
+
+      // Afficher le modal
+      new bootstrap.Modal(document.getElementById('editResourceModal')).show();
+    });
+  });
+});
+</script>
+{% endblock %}
 
     .main-content {
       margin-left: var(--sidebar-width);

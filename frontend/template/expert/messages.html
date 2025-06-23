@@ -1,5 +1,6 @@
 {% extends 'expert/base.html' %}
 {% load static %}
+{% load message_filters %}
 {# Version: {% now "U" %} #}
 
 {% block title %}ServicesBladi - Messagerie Expert{% endblock %}
@@ -7,6 +8,13 @@
 {% block meta_keywords %}messages, experts, client, communication, assistance{% endblock %}
 
 {% block extra_styles %}
+<!-- Include consolidated messaging fixes -->
+<link rel="stylesheet" href="{% static 'css/messaging-fixes.css' %}">
+<!-- Critical fixes - must load last -->
+<link rel="stylesheet" href="{% static 'css/messaging-critical-fixes.css' %}">
+<!-- Responsive messaging CSS -->
+<link rel="stylesheet" href="{% static 'css/messages-responsive.css' %}">
+
 <style>
   /* Chat interface styles - Enhanced for better readability */
   .chat-container {
@@ -166,11 +174,12 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     border-bottom-left-radius: 5px;
   }
-
   .sent .message-content {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color-light) 100%);
-    color: white;
+    background: #DCF8C6 !important;
+    background-color: #DCF8C6 !important;
+    color: #1f1f1f !important;
     border-bottom-right-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   }
 
   .message-time {
@@ -179,9 +188,8 @@
     margin-top: 0.5rem;
     text-align: right;
   }
-
   .sent .message-time {
-    color: rgba(255,255,255,0.85);
+    color: rgba(31, 31, 31, 0.7) !important;
   }
 
   .chat-input {
@@ -284,7 +292,6 @@
     color: #888;
     font-size: 1.1rem;
   }
-
   /* Better responsiveness for mobile */
   @media (max-width: 768px) {
     .chat-container {
@@ -305,6 +312,141 @@
     
     .message-content {
       max-width: 90%;
+    }
+  }
+
+  /* Enhanced Mobile Responsive Design - Slide Navigation */
+  @media (max-width: 992px) {
+    .chat-container {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .contacts-list {
+      width: 100% !important;
+      position: absolute;
+      height: 100%;
+      z-index: 10;
+      background: white;
+      transform: translateX(0);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .chat-main {
+      width: 100% !important;
+      position: absolute;
+      height: 100%;
+      z-index: 5;
+      background: white;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    /* When a contact is selected, show chat and hide contacts */
+    .chat-container.chat-active .contacts-list {
+      transform: translateX(-100%);
+    }
+    
+    .chat-container.chat-active .chat-main {
+      transform: translateX(0);
+    }
+    
+    /* Back button styling */
+    .chat-header #showContacts {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: transparent;
+      color: #6c757d;
+      border-radius: 50%;
+      margin-right: 0.75rem;
+      transition: all 0.2s ease;
+    }
+    
+    .chat-header #showContacts:hover,
+    .chat-header #showContacts:focus {
+      color: #495057;
+      background: rgba(0,0,0,0.08);
+      outline: none;
+    }
+    
+    /* Improved touch targets */
+    .contact-item {
+      padding: 1rem !important;
+      min-height: 70px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .contact-avatar {
+      width: 48px !important;
+      height: 48px !important;
+      margin-right: 1rem !important;
+    }
+    
+    /* Better spacing for mobile */
+    .chat-header {
+      padding: 1rem !important;
+      min-height: 80px;
+    }
+    
+    .chat-avatar {
+      width: 48px !important;
+      height: 48px !important;
+    }
+    
+    /* Search input improvements */
+    .contacts-header {
+      padding: 1rem !important;
+      border-bottom: 2px solid #f8f9fa;
+    }
+    
+    /* Message input improvements */
+    .chat-input {
+      padding: 1rem !important;
+      background: white;
+      border-top: 2px solid #f8f9fa;
+    }
+    
+    .chat-input input {
+      font-size: 16px; /* Prevent zoom on iOS */
+      padding: 0.75rem 1rem !important;
+      border-radius: 25px !important;
+    }
+    
+    .chat-input button {
+      width: 48px !important;
+      height: 48px !important;
+      border-radius: 50% !important;
+      margin-left: 0.5rem;
+    }
+    
+    /* Hide desktop-only elements */
+    .d-lg-none {
+      display: block !important;
+    }
+    
+    /* Message bubbles optimization for mobile */
+    .message-content {
+      max-width: 85% !important;
+      font-size: 0.95rem;
+    }
+    
+    /* Status indicators larger on mobile */
+    .contact-unread {
+      min-width: 24px !important;
+      height: 24px !important;
+      font-size: 0.8rem !important;
+    }
+  }
+
+  /* Hide back button on desktop */
+  @media (min-width: 993px) {
+    #showContacts {
+      display: none !important;
     }
   }
 </style>
@@ -341,9 +483,8 @@
     </div>
     
     {% if clients %}
-      {% for client in clients %}
-        <div class="contact-item {% if active_client == client.id %}active{% endif %}" data-contact-id="{{ client.id }}">
-          <img src="{{ client.get_profile_picture_url }}" alt="{{ client.get_full_name }}" class="contact-avatar">
+      {% for client in clients %}        <div class="contact-item {% if active_client.id == client.id %}active{% endif %}" data-contact-id="{{ client.id }}">
+          <img src="{% static 'img/client-default.png' %}" alt="{{ client.name }}" class="contact-avatar">
           <div class="contact-info">
             <div class="contact-name">
               {% if client.is_online %}
@@ -351,9 +492,9 @@
               {% else %}
                 <span class="client-status status-offline"></span>
               {% endif %}
-              {{ client.get_full_name|default:client.email }}
+              {{ client.name|default:client.email }}
             </div>
-            <div class="contact-preview">{{ client.last_message|default:"Commencer une conversation..." }}</div>
+            <div class="contact-preview">{{ client.latest_message|default:"Commencer une conversation..." }}</div>
           </div>
           <div class="contact-meta">
             {% if client.last_message_time %}
@@ -404,29 +545,20 @@
       <div class="chat-header">
         <button class="btn btn-sm btn-outline-secondary me-2 d-lg-none" id="showContacts">
           <i class="bi bi-arrow-left"></i>
-        </button>
-        <img src="{{ active_client.get_profile_picture_url }}" alt="{{ active_client.get_full_name }}" class="chat-avatar">
+        </button>        <img src="{{ active_client.get_profile_picture_url }}" alt="{{ active_client.get_full_name }}" class="chat-avatar">
         <div class="chat-contact-info">
-          <div class="chat-contact-name">{{ active_client.get_full_name|default:active_client.email }}</div>
-          <div class="chat-contact-status">
-            Client • 
-            {% if active_client.is_online %}
-              <span class="text-success">En ligne</span>
-            {% else %}
-              <span>Hors ligne</span>
-            {% endif %}
+          <div class="chat-contact-name">{{ active_client.get_full_name|default:active_client.email }}</div><div class="chat-contact-status">
+            Client
             {% if active_client.service %}
               • {{ active_client.service }}
             {% endif %}
           </div>
-        </div>
-      </div>
-      
-      <div class="chat-messages" id="chatMessages">
-        {% for message in messages %}
+        </div>        </div>
+        <div class="chat-messages" id="chatMessages">
+        {% for message in messages|slice:":50" %}
           <div class="message {% if message.sender == user %}sent{% else %}received{% endif %}">
             <div class="message-content">
-              <div>{{ message.content }}</div>
+              <div>{{ message.content|truncatechars:2000|linebreaksbr|escape }}</div>
               <div class="message-time">{{ message.created_at|date:"H:i" }}</div>
             </div>
           </div>
@@ -470,42 +602,90 @@
       });
     }
     
-    // Mobile view - show contacts list
+    // Mobile responsive messaging functionality
     const showContactsBtn = document.getElementById('showContacts');
     const contactsList = document.querySelector('.contacts-list');
+    const chatContainer = document.querySelector('.chat-container');
     
-    if (showContactsBtn) {
-      showContactsBtn.addEventListener('click', function() {
-        contactsList.classList.add('active');
+    // Back to contacts functionality
+    if (showContactsBtn && contactsList && chatContainer) {
+      showContactsBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Remove chat-active class to show contacts list
+        chatContainer.classList.remove('chat-active');
+        
+        // Navigate back to messages without client parameter
+        setTimeout(() => {
+          window.location.href = "{% url 'expert_messages' %}";
+        }, 300);
       });
     }
     
-    // Handle contact item clicks
+    // Handle contact item clicks with mobile responsiveness
     const contactItems = document.querySelectorAll('.contact-item');
     contactItems.forEach(item => {
       item.addEventListener('click', function() {
         // Get contact ID
         const contactId = this.dataset.contactId;
         if (contactId) {
-          window.location.href = "{% url 'expert_messages' %}?client=" + contactId;
+          // For mobile: Show chat area immediately
+          if (window.innerWidth <= 992 && chatContainer) {
+            chatContainer.classList.add('chat-active');
+            
+            // Add a small delay before navigation
+            setTimeout(() => {
+              window.location.href = "{% url 'expert_messages' %}?client=" + contactId;
+            }, 300);
+          } else {
+            // Desktop: Navigate immediately
+            window.location.href = "{% url 'expert_messages' %}?client=" + contactId;
+          }
         }
       });
     });
     
+    // Initialize mobile view
+    function initMobileView() {
+      if (window.innerWidth <= 992 && chatContainer) {
+        const activeClient = document.querySelector('.contact-item.active');
+        
+        if (activeClient) {
+          // If there's an active client on mobile, show chat
+          chatContainer.classList.add('chat-active');
+        }
+      }
+    }
+    
+    // Handle window resize
+    window.addEventListener('resize', function() {
+      if (window.innerWidth > 992 && chatContainer) {
+        // Reset mobile classes on desktop
+        chatContainer.classList.remove('chat-active');
+      }
+    });
+    
+    // Initialize mobile view
+    initMobileView();
+    
     // Contact search functionality
     const searchInput = document.getElementById('contactSearch');
     if (searchInput) {
+      let searchTimeout;
       searchInput.addEventListener('input', function() {
         const searchTerm = this.value.toLowerCase();
         
-        contactItems.forEach(item => {
-          const name = item.querySelector('.contact-name').textContent.toLowerCase();
-          if (name.includes(searchTerm)) {
-            item.style.display = 'flex';
-          } else {
-            item.style.display = 'none';
-          }
-        });
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          contactItems.forEach(item => {
+            const name = item.querySelector('.contact-name').textContent.toLowerCase();
+            if (name.includes(searchTerm)) {
+              item.style.display = 'flex';
+            } else {
+              item.style.display = 'none';
+            }
+          });
+        }, 300);
       });
     }
     
@@ -617,4 +797,377 @@
     setInterval(checkNewMessages, 3000);
   });
 </script>
+{% endblock %}
+
+{% block scripts %}
+<!-- Avatar fallback script -->
+<script>  document.addEventListener('DOMContentLoaded', function() {
+    // Create a placeholder avatar with user initials
+    const createDefaultAvatar = (name = 'User') => {
+        // Create a data URL for a default avatar with the user's initials
+        const canvas = document.createElement('canvas');
+        canvas.width = 200;
+        canvas.height = 200;
+        const context = canvas.getContext('2d');
+        
+        // Create a gradient background for better aesthetics
+        const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, '#f0f2f5');
+        gradient.addColorStop(1, '#e1e4e8');
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Add a subtle circular border
+        context.beginPath();
+        context.arc(canvas.width/2, canvas.height/2, 95, 0, 2 * Math.PI);
+        context.strokeStyle = 'rgba(0,0,0,0.1)';
+        context.lineWidth = 3;
+        context.stroke();
+        
+        // Text settings with improved font
+        context.font = 'bold 80px Arial, Helvetica, sans-serif';
+        context.fillStyle = '#5a7184';  // Softer blue-gray for better readability
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        
+        // Get first initials from the name (max 2 characters)
+        let initials = 'U';
+        if (name && name !== 'User' && name !== 'undefined') {
+            initials = name.split(' ')
+                .filter(part => part && part.length > 0)
+                .map(part => part.charAt(0))
+                .join('')
+                .toUpperCase()
+                .substring(0, 2);
+        }
+        
+        // Draw the text with a subtle shadow for depth
+        context.shadowColor = 'rgba(0,0,0,0.1)';
+        context.shadowBlur = 4;
+        context.shadowOffsetX = 1;
+        context.shadowOffsetY = 1;
+        context.fillText(initials, canvas.width/2, canvas.height/2);
+        
+        return canvas.toDataURL('image/png');
+    };
+    
+    // Function to handle broken image fallbacks
+    function setupImageFallbacks() {
+      const avatarImages = document.querySelectorAll('.contact-avatar, .chat-avatar');
+        avatarImages.forEach(function(img) {
+        // Add error handler to each image
+        img.onerror = function() {
+          handleImageError(this);
+        };
+        
+        // Enhanced check for broken images:
+        // 1. Image is fully loaded but has no width (broken)
+        // 2. Image has no source or undefined source
+        // 3. Image source is an invalid URL
+        // 4. Image source ends with default placeholder that doesn't exist
+        if ((img.complete && img.naturalWidth === 0) || 
+            !img.src || 
+            img.src === 'undefined' || 
+            img.src.includes('undefined') ||
+            (img.src.includes('/media/profile_pictures/') && img.src.endsWith('.jpg') && !img.naturalWidth)) {
+            handleImageError(img);
+        }
+        
+        // Also test image validity by trying to fetch it
+        if (img.src && !img.src.startsWith('data:')) {
+            fetch(img.src, { method: 'HEAD' })
+                .catch(() => {
+                    // If fetch fails, the image URL is invalid
+                    if (!img.classList.contains('avatar-fallback')) {
+                        handleImageError(img);
+                    }
+                });
+        }
+      });
+      
+      function handleImageError(img) {
+        // Get the name from alt text
+        const name = img.alt || 'User';
+        
+        // Generate avatar with initials
+        img.src = createDefaultAvatar(name);
+        
+        // Add a special class for additional styling if needed
+        img.classList.add('avatar-fallback');
+        
+        // Remove the error handler to prevent infinite loops
+        img.onerror = null;
+      }
+    }
+      // Run immediately
+    setupImageFallbacks();
+    
+    // Watch for dynamically added images with improved mutation handling
+    const observer = new MutationObserver((mutations) => {
+        let shouldFix = false;
+        
+        // Check if any relevant nodes were added
+        mutations.forEach(mutation => {
+            if (mutation.type === 'childList') {
+                // Check added nodes
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) { // Element node
+                        // If this is an image element that might need fixing
+                        if (node.tagName === 'IMG') {
+                            shouldFix = true;
+                        }
+                        // If this contains image elements that might need fixing
+                        else if (node.querySelector && node.querySelector('img')) {
+                            shouldFix = true;
+                        }
+                    }
+                });
+            }
+            // Check attribute changes (src attribute of images)
+            else if (mutation.type === 'attributes' && 
+                     mutation.attributeName === 'src' && 
+                     mutation.target.tagName === 'IMG') {
+                shouldFix = true;
+            }
+        });
+        
+        // Only run the fix if necessary
+        if (shouldFix) {
+            setupImageFallbacks();
+        }
+    });
+    
+    // Observe the entire body for changes, with all necessary options
+    observer.observe(document.body, {
+        childList: true,    // Watch for added/removed nodes
+        subtree: true,      // Watch all descendants
+        attributes: true,   // Watch attributes
+        attributeFilter: ['src']  // Only care about src attribute changes
+    });
+  });
+</script>
+
+<script>
+// Expert Messages - Ultra Safe Anti-Crash Script
+(function() {
+    'use strict';
+    
+    // Safety constants - minimal settings to prevent crashes
+    const SAFE_CONFIG = {
+        maxMessages: 25,
+        clickDelay: 2000,        // 2 second delay between clicks
+        messageLimit: 1000,      // Shorter message limit
+        maxRetries: 2,           // Fewer retries
+        pollDisabled: true       // Disable polling completely for safety
+    };
+    
+    let lastClickTime = 0;
+    let isNavigating = false;
+    
+    // Ultra-safe contact click handler for expert
+    function handleContactClick(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        
+        const now = Date.now();
+        if (now - lastClickTime < SAFE_CONFIG.clickDelay) {
+            console.log('Click ignored - too soon');
+            return false;
+        }
+        
+        if (isNavigating) {
+            console.log('Already navigating');
+            return false;
+        }
+        
+        lastClickTime = now;
+        
+        try {
+            const contactId = this.dataset.contactId;
+            if (!contactId || !/^\d+$/.test(contactId)) {
+                console.warn('Invalid contact ID');
+                return false;
+            }
+            
+            const id = parseInt(contactId, 10);
+            if (isNaN(id) || id <= 0) {
+                console.warn('Invalid contact ID number');
+                return false;
+            }
+            
+            isNavigating = true;
+            
+            // Show visual feedback
+            this.style.opacity = '0.5';
+            
+            // For mobile: Show chat area immediately
+            if (window.innerWidth <= 992) {
+                const chatContainer = document.querySelector('.chat-container');
+                if (chatContainer) {
+                    chatContainer.classList.add('chat-active');
+                }
+                
+                // Add a small delay before actual navigation
+                setTimeout(() => {
+                    try {
+                        window.location.href = `/expert/messages/?client=${id}`;
+                    } catch (error) {
+                        console.error('Navigation error:', error);
+                        isNavigating = false;
+                        this.style.opacity = '1';
+                        // Reset mobile view
+                        const chatContainer = document.querySelector('.chat-container');
+                        if (chatContainer) {
+                            chatContainer.classList.remove('chat-active');
+                        }
+                    }
+                }, 300);
+            } else {
+                // Desktop: Navigate immediately
+                setTimeout(() => {
+                    try {
+                        window.location.href = `/expert/messages/?client=${id}`;
+                    } catch (error) {
+                        console.error('Navigation error:', error);
+                        isNavigating = false;
+                        this.style.opacity = '1';
+                    }
+                }, 200);
+            }
+            
+        } catch (error) {
+            console.error('Contact click error:', error);
+            isNavigating = false;
+            this.style.opacity = '1';
+        }
+        
+        return false;
+    }
+    
+    // Ultra-safe search function
+    function safeSearch(searchTerm) {
+        if (!searchTerm || searchTerm.length > 50) return;
+        
+        try {
+            const items = document.querySelectorAll('.contact-item');
+            for (let i = 0; i < items.length && i < 20; i++) {
+                const item = items[i];
+                const nameEl = item.querySelector('.contact-name');
+                if (nameEl && nameEl.textContent) {
+                    const name = nameEl.textContent.toLowerCase();
+                    item.style.display = name.includes(searchTerm.toLowerCase()) ? 'flex' : 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Search error:', error);
+        }
+    }
+    
+    // Simple initialization without complex features
+    function initSafeMessaging() {
+        try {
+            // Setup contact clicks with safety
+            const contactItems = document.querySelectorAll('.contact-item');
+            contactItems.forEach(item => {
+                if (item.dataset.contactId) {
+                    item.removeEventListener('click', handleContactClick); // Remove any existing
+                    item.addEventListener('click', handleContactClick);
+                }
+            });
+            
+            // Setup search (simplified)
+            const searchInput = document.getElementById('contactSearch');
+            if (searchInput) {
+                let searchTimeout;
+                searchInput.addEventListener('input', function(e) {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        safeSearch(e.target.value.trim());
+                    }, 500);
+                });
+            }
+            
+            // Safe scroll to bottom
+            const chatMessages = document.getElementById('chatMessages');
+            if (chatMessages) {
+                try {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                } catch (scrollError) {
+                    console.warn('Scroll error ignored');
+                }
+            }
+            
+            // Mobile contacts button (back to contacts)
+            const showContactsBtn = document.getElementById('showContacts');
+            const contactsList = document.querySelector('.contacts-list');
+            const chatContainer = document.querySelector('.chat-container');
+            
+            if (showContactsBtn && contactsList && chatContainer) {
+                showContactsBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Remove chat-active class to show contacts list
+                    chatContainer.classList.remove('chat-active');
+                    
+                    // Navigate back to messages without client parameter
+                    setTimeout(() => {
+                        window.location.href = '/expert/messages/';
+                    }, 300);
+                });
+            }
+            
+            // Initialize mobile view
+            function initMobileView() {
+                if (window.innerWidth <= 992) {
+                    const chatContainer = document.querySelector('.chat-container');
+                    const activeContact = document.querySelector('.contact-item.active');
+                    
+                    if (chatContainer && activeContact) {
+                        // If there's an active contact on mobile, show chat
+                        chatContainer.classList.add('chat-active');
+                    }
+                }
+            }
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                const chatContainer = document.querySelector('.chat-container');
+                if (window.innerWidth > 992 && chatContainer) {
+                    // Reset mobile classes on desktop
+                    chatContainer.classList.remove('chat-active');
+                }
+            });
+            
+            // Initialize mobile view
+            initMobileView();
+            
+            console.log('Safe expert messaging initialized');
+            
+        } catch (error) {
+            console.error('Init error:', error);
+        }
+    }
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSafeMessaging);
+    } else {
+        initSafeMessaging();
+    }
+    
+    // Global error handler
+    window.addEventListener('error', function(e) {
+        console.error('Global error caught and handled:', e.error);
+        e.preventDefault();
+        return true;
+    });
+})();
+</script>
+
+<!-- Include consolidated messaging fixes JavaScript -->
+<script src="{% static 'js/messaging-fixes.js' %}"></script>
+<!-- Include messaging layout fix to prevent vertical text stacking -->
+<script src="{% static 'js/messaging-layout-fix.js' %}"></script>
+<!-- Include responsive messaging JavaScript -->
+<script src="{% static 'js/messages-responsive.js' %}"></script>
 {% endblock %}

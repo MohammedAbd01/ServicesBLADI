@@ -18,45 +18,31 @@
 
     <h2>Gestion des Utilisateurs</h2>
 
-    <div class="d-flex gap-2">
-
-      <a href="{% url 'admin_add_user' %}" class="btn btn-primary">
-
-        <i class="bi bi-person-plus me-2"></i>Nouvel utilisateur
-
-      </a>
-
-    </div>
-
   </div>
 
 
 
   <!-- Stats Cards -->
 
-  <div class="row mb-4">
+  <div class="row dashboard-stats">
 
     <div class="col-xl-3 col-md-6 mb-3">
 
-      <div class="card border-left-primary shadow h-100 py-2">
+      <div class="dashboard-card">
 
         <div class="card-body">
 
-          <div class="row no-gutters align-items-center">
+          <div class="d-flex justify-content-between align-items-center">
 
-            <div class="col mr-2">
+            <div>
 
-              <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Utilisateurs</div>
+              <h6 class="text-muted">Total Utilisateurs</h6>
 
-              <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_users }}</div>
-
-            </div>
-
-            <div class="col-auto">
-
-              <i class="bi bi-people-fill fa-2x text-gray-300"></i>
+              <h3>{{ total_users }}</h3>
 
             </div>
+
+            <i class="bi bi-people-fill text-primary"></i>
 
           </div>
 
@@ -70,25 +56,21 @@
 
     <div class="col-xl-3 col-md-6 mb-3">
 
-      <div class="card border-left-success shadow h-100 py-2">
+      <div class="dashboard-card">
 
         <div class="card-body">
 
-          <div class="row no-gutters align-items-center">
+          <div class="d-flex justify-content-between align-items-center">
 
-            <div class="col mr-2">
+            <div>
 
-              <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Clients</div>
+              <h6 class="text-muted">Clients</h6>
 
-              <div class="h5 mb-0 font-weight-bold text-gray-800">{{ clients_count }}</div>
-
-            </div>
-
-            <div class="col-auto">
-
-              <i class="bi bi-person fa-2x text-gray-300"></i>
+              <h3>{{ clients_count }}</h3>
 
             </div>
+
+            <i class="bi bi-person-vcard text-success"></i>
 
           </div>
 
@@ -102,25 +84,21 @@
 
     <div class="col-xl-3 col-md-6 mb-3">
 
-      <div class="card border-left-warning shadow h-100 py-2">
+      <div class="dashboard-card">
 
         <div class="card-body">
 
-          <div class="row no-gutters align-items-center">
+          <div class="d-flex justify-content-between align-items-center">
 
-            <div class="col mr-2">
+            <div>
 
-              <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Experts</div>
+              <h6 class="text-muted">Experts</h6>
 
-              <div class="h5 mb-0 font-weight-bold text-gray-800">{{ experts_count }}</div>
-
-            </div>
-
-            <div class="col-auto">
-
-              <i class="bi bi-briefcase fa-2x text-gray-300"></i>
+              <h3>{{ experts_count }}</h3>
 
             </div>
+
+            <i class="bi bi-person-workspace text-warning"></i>
 
           </div>
 
@@ -134,25 +112,21 @@
 
     <div class="col-xl-3 col-md-6 mb-3">
 
-      <div class="card border-left-info shadow h-100 py-2">
+      <div class="dashboard-card">
 
         <div class="card-body">
 
-          <div class="row no-gutters align-items-center">
+          <div class="d-flex justify-content-between align-items-center">
 
-            <div class="col mr-2">
+            <div>
 
-              <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Administrateurs</div>
+              <h6 class="text-muted">Administrateurs</h6>
 
-              <div class="h5 mb-0 font-weight-bold text-gray-800">{{ admins_count }}</div>
-
-            </div>
-
-            <div class="col-auto">
-
-              <i class="bi bi-shield-lock fa-2x text-gray-300"></i>
+              <h3>{{ admins_count }}</h3>
 
             </div>
+
+            <i class="bi bi-shield-lock text-info"></i>
 
           </div>
 
@@ -240,42 +214,6 @@
 
 
 
-  <!-- Actions Buttons -->
-
-  <div class="mb-4">
-
-    <form id="bulk-form" method="post">
-
-      {% csrf_token %}
-
-      <div class="d-flex gap-2">
-
-        <button type="button" class="btn btn-outline-success" onclick="toggleSelectedStatus('active')">
-
-          <i class="bi bi-check-circle me-2"></i>Activer
-
-        </button>
-
-        <button type="button" class="btn btn-outline-warning" onclick="toggleSelectedStatus('inactive')">
-
-          <i class="bi bi-x-circle me-2"></i>Désactiver
-
-        </button>
-
-        <button type="button" class="btn btn-outline-danger" onclick="deleteSelected()">
-
-          <i class="bi bi-trash me-2"></i>Supprimer
-
-        </button>
-
-      </div>
-
-    </form>
-
-  </div>
-
-
-
   <!-- Users Table -->
 
   <div class="card shadow mb-4">
@@ -304,12 +242,6 @@
 
             <tr>
 
-              <th width="30">
-
-                <input type="checkbox" id="select-all">
-
-              </th>
-
               <th>Nom</th>
 
               <th>Email</th>
@@ -331,12 +263,6 @@
             {% for user in users %}
 
             <tr>
-
-              <td>
-
-                <input type="checkbox" class="user-checkbox" value="{{ user.id }}">
-
-              </td>
 
               <td>
 
@@ -686,22 +612,6 @@
 
 <script>
 
-  // Select all checkbox functionality
-
-  document.getElementById('select-all').addEventListener('change', function() {
-
-    var checkboxes = document.querySelectorAll('.user-checkbox');
-
-    checkboxes.forEach(checkbox => {
-
-      checkbox.checked = this.checked;
-
-    });
-
-  });
-
-
-
   // Function to confirm toggling user status
 
   function confirmToggleStatus(userId, makeActive) {
@@ -743,120 +653,6 @@
     confirmDeleteBtn.href = "{% url 'admin_delete_user' user_id=0 %}".replace('0', userId);
 
     deleteModal.show();
-
-  }
-
-
-
-  // Function to toggle selected users' status
-
-  function toggleSelectedStatus(status) {
-
-    var selected = getSelectedUsers();
-
-    if (selected.length === 0) {
-
-      alert('Veuillez sélectionner au moins un utilisateur.');
-
-      return;
-
-    }
-
-    
-
-    if (confirm('Êtes-vous sûr de vouloir ' + (status === 'active' ? 'activer' : 'désactiver') + ' les utilisateurs sélectionnés ?')) {
-
-      var form = document.getElementById('bulk-form');
-
-      form.action = "{% url 'admin_bulk_toggle_users_status' %}";
-
-      
-
-      // Add hidden fields
-
-      var input = document.createElement('input');
-
-      input.type = 'hidden';
-
-      input.name = 'user_ids';
-
-      input.value = selected.join(',');
-
-      form.appendChild(input);
-
-      
-
-      var statusInput = document.createElement('input');
-
-      statusInput.type = 'hidden';
-
-      statusInput.name = 'status';
-
-      statusInput.value = status;
-
-      form.appendChild(statusInput);
-
-      
-
-      form.submit();
-
-    }
-
-  }
-
-
-
-  // Function to delete selected users
-
-  function deleteSelected() {
-
-    var selected = getSelectedUsers();
-
-    if (selected.length === 0) {
-
-      alert('Veuillez sélectionner au moins un utilisateur.');
-
-      return;
-
-    }
-
-    
-
-    if (confirm('Êtes-vous sûr de vouloir supprimer les utilisateurs sélectionnés ? Cette action est irréversible.')) {
-
-      var form = document.getElementById('bulk-form');
-
-      form.action = "{% url 'admin_bulk_delete_users' %}";
-
-      
-
-      var input = document.createElement('input');
-
-      input.type = 'hidden';
-
-      input.name = 'user_ids';
-
-      input.value = selected.join(',');
-
-      form.appendChild(input);
-
-      
-
-      form.submit();
-
-    }
-
-  }
-
-
-
-  // Helper function to get selected users
-
-  function getSelectedUsers() {
-
-    var checkboxes = document.querySelectorAll('.user-checkbox:checked');
-
-    return Array.from(checkboxes).map(cb => cb.value);
 
   }
 

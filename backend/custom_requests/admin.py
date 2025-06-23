@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
-from .models import ServiceRequest, RendezVous, Document, Message, Notification
+from .models import ServiceRequest, RendezVous, Document, Message, Notification, ContactMessage
 
 class DocumentInline(admin.TabularInline):
     """Inline for documents associated with requests"""
@@ -94,9 +94,30 @@ class NotificationAdmin(admin.ModelAdmin):
         return f"{obj.user.name} {obj.user.first_name}"
     user_name.short_description = _('User')
 
+class ContactMessageAdmin(admin.ModelAdmin):
+    """Admin configuration for ContactMessage model"""
+    list_display = ('subject', 'name', 'email', 'created_at', 'is_read', 'is_responded')
+    list_filter = ('is_read', 'is_responded', 'created_at')
+    search_fields = ('name', 'email', 'subject', 'message')
+    date_hierarchy = 'created_at'
+    readonly_fields = ('created_at',)
+    
+    def mark_as_read(self, request, queryset):
+        """Mark selected contact messages as read"""
+        queryset.update(is_read=True)
+    mark_as_read.short_description = _('Mark selected messages as read')
+    
+    def mark_as_responded(self, request, queryset):
+        """Mark selected contact messages as responded"""
+        queryset.update(is_responded=True)
+    mark_as_responded.short_description = _('Mark selected messages as responded')
+    
+    actions = ['mark_as_read', 'mark_as_responded']
+
 # Register models with their admin configurations
 admin.site.register(ServiceRequest, ServiceRequestAdmin)
 admin.site.register(RendezVous, RendezVousAdmin)
 admin.site.register(Document, DocumentAdmin)
 admin.site.register(Message, MessageAdmin)
 admin.site.register(Notification, NotificationAdmin)
+admin.site.register(ContactMessage, ContactMessageAdmin)

@@ -5,6 +5,11 @@
 {% block meta_description %}Conversation en temps réel pour la demande {{ service_request.title }}{% endblock %}
 
 {% block styles %}
+<!-- Include consolidated messaging fixes -->
+<link rel="stylesheet" href="{% static 'css/messaging-fixes.css' %}">
+<!-- Critical fixes - must load last -->
+<link rel="stylesheet" href="{% static 'css/messaging-critical-fixes.css' %}">
+
 <style>
     .chat-container {
         height: 80vh;
@@ -389,9 +394,8 @@
                             <span id="connection-text">Connexion...</span>
                         </div>
                     </div>
-                    
-                    <div class="chat-messages clearfix" id="chat-messages">
-                        {% for message in chat_messages %}
+                      <div class="chat-messages clearfix" id="chat-messages">
+                        {% for message in chat_messages|slice:":50" %}
                             <div class="message {% if message.sender == request.user %}message-outgoing{% else %}message-incoming{% endif %}">
                                 <div class="message-sender">
                                     {% if message.sender == request.user %}
@@ -401,7 +405,7 @@
                                     {% endif %}
                                 </div>
                                 <div class="message-content">
-                                    {{ message.content }}
+                                    {{ message.content|truncatechars:2000|linebreaksbr|escape }}
                                 </div>
                                 <div class="message-timestamp">
                                     {{ message.sent_at|date:"d/m/Y H:i" }}
@@ -439,7 +443,29 @@
 {% endblock %}
 
 {% block scripts %}
-<script>    document.addEventListener('DOMContentLoaded', function() {
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Memory management variables
+        const MAX_MESSAGES = 50;
+        
+        // DOM cleanup function
+        function cleanupOldMessages() {
+            const messagesContainer = document.getElementById('chat-messages');
+            if (messagesContainer) {
+                const messages = messagesContainer.children;
+                const messagesToRemove = Math.max(0, messages.length - MAX_MESSAGES);
+                
+                for (let i = 0; i < messagesToRemove; i++) {
+                    if (messagesContainer.firstChild) {
+                        messagesContainer.removeChild(messagesContainer.firstChild);
+                    }
+                }
+            }
+        }
+        
+        // Run cleanup every 30 seconds
+        setInterval(cleanupOldMessages, 30000);
+        
         const chatMessages = document.getElementById('chat-messages');
         const typingIndicator = document.getElementById('typing-indicator');
         const typingUserName = document.getElementById('typing-user-name');
@@ -459,6 +485,20 @@
         let pendingMessages = [];
         let typingTimeout;
         
+        // Debounced scroll handler
+        let scrollTimeout;
+        function debouncedScrollHandler() {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                const scrollPosition = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight;
+                isAtBottom = scrollPosition < 50;
+                
+                if (isAtBottom) {
+                    newMessagesNotification.style.display = 'none';
+                }
+            }, 100);
+        }
+        
         // Initialisation de la connexion
         initializeWebSocket();
         
@@ -471,37 +511,41 @@
         }
         
         // Vérifier si l'utilisateur est en bas de la conversation
-        chatMessages.addEventListener('scroll', function() {
-            const scrollPosition = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight;
-            isAtBottom = scrollPosition < 50;
-            
-            if (isAtBottom) {
-                newMessagesNotification.style.display = 'none';
-            }
-        });
-          // Afficher la notification de nouveaux messages
+        chatMessages.addEventListener('scroll', debouncedScrollHandler);
+          
+        // Afficher la notification de nouveaux messages
         newMessagesNotification.addEventListener('click', function() {
             scrollToBottom(true);
         });
-          // Gestion de l'indicateur "en train d'écrire"
-        messageInput.addEventListener('input', function() {
-            sendTypingStatus(true);
-            
-            // Réinitialiser le délai d'inactivité
-            clearTimeout(typingTimeout);
-            
-            // Arrêter l'indicateur après 3 secondes d'inactivité
-            typingTimeout = setTimeout(() => {
-                sendTypingStatus(false);
-            }, 3000);
-        });
+          
+        // Debounced typing handler
+        let typingDebounceTimeout;
+        function debouncedTypingHandler() {
+            clearTimeout(typingDebounceTimeout);
+            typingDebounceTimeout = setTimeout(() => {
+                sendTypingStatus(true);
+                
+                // Réinitialiser le délai d'inactivité
+                clearTimeout(typingTimeout);
+                
+                // Arrêter l'indicateur après 3 secondes d'inactivité
+                typingTimeout = setTimeout(() => {
+                    sendTypingStatus(false);
+                }, 3000);
+            }, 150);
+        }
+        
+        // Gestion de l'indicateur "en train d'écrire"
+        messageInput.addEventListener('input', debouncedTypingHandler);
         
         // Arrêter l'indicateur après l'envoi d'un message
         chatForm.addEventListener('submit', function() {
             sendTypingStatus(false);
             clearTimeout(typingTimeout);
+            clearTimeout(typingDebounceTimeout);
         });
-          // Fonction pour envoyer l'état de frappe
+          
+        // Fonction pour envoyer l'état de frappe
         function sendTypingStatus(isTyping) {
             if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
                 chatSocket.send(JSON.stringify({
@@ -531,8 +575,11 @@
             }, 5000);
         }
         
-        // Ajouter un message au chat
+        // Ajouter un message au chat avec protection de la mémoire
         function addMessageToChat(data, isPending = false) {
+            // Vérifier la limite de messages
+            cleanupOldMessages();
+            
             // Créer l'élément de message
             const messageElement = document.createElement('div');
             messageElement.classList.add('message');
@@ -548,18 +595,33 @@
                 messageElement.classList.add('message-incoming');
             }
             
-            // Construire le contenu du message
+            // Construire le contenu du message avec protection XSS
             let statusHTML = '';
             if (isPending) {
                 statusHTML = '<div class="message-status message-sending">Envoi en cours...</div>';
             }
             
+            // Nettoyer le contenu du message pour éviter XSS
+            const sanitizedMessage = String(data.message || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#x27;')
+                .slice(0, 2000); // Limiter la longueur
+            
+            const sanitizedSenderName = String(data.sender_name || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .slice(0, 100);
+            
             messageElement.innerHTML = `
                 <div class="message-sender">
-                    ${data.sender_id === currentUserId ? 'Vous' : data.sender_name}
+                    ${data.sender_id === currentUserId ? 'Vous' : sanitizedSenderName}
                 </div>
                 <div class="message-content">
-                    ${data.message}
+                    ${sanitizedMessage}
                 </div>
                 <div class="message-timestamp">
                     ${new Date(data.timestamp || Date.now()).toLocaleString('fr-FR', {
@@ -586,7 +648,8 @@
             
             return messageElement;
         }
-          // Initialiser la connexion WebSocket
+        
+        // Initialiser la connexion WebSocket
         function initializeWebSocket() {
             connectionDot.className = 'status-dot status-connecting';
             connectionText.textContent = 'Connexion...';
@@ -599,93 +662,111 @@
             try {
                 // Initialiser la connexion WebSocket
                 chatSocket = new WebSocket(wsUrl);
-              chatSocket.onopen = function() {
-                connectionDot.className = 'status-dot status-connected';
-                connectionText.textContent = 'Connecté';
-                reconnectAttempts = 0;
-                
-                console.log('WebSocket connection established');
-                
-                // Envoyer les messages en attente
-                if (pendingMessages.length > 0) {
-                    pendingMessages.forEach(message => {
-                        sendMessage(message);
-                    });
-                    pendingMessages = [];
-                }
-            };            chatSocket.onmessage = function(e) {
-                const data = JSON.parse(e.data);
-                console.log('Client received message:', data);
-                
-                // Si erreur, afficher message d'erreur
-                if (data.error) {
-                    displayError(data.error);
-                    return;
-                }
-                
-                // Traiter les indicateurs de frappe
-                if (data.typing) {
-                    console.log('Typing indicator received:', data.typing);
-                    if (data.typing.user_id !== currentUserId) {
-                        if (data.typing.is_typing) {
-                            typingUserName.textContent = data.typing.user_name;
-                            typingIndicator.style.display = 'block';
-                        } else {
-                            typingIndicator.style.display = 'none';
-                        }
+              
+                chatSocket.onopen = function() {
+                    connectionDot.className = 'status-dot status-connected';
+                    connectionText.textContent = 'Connecté';
+                    reconnectAttempts = 0;
+                    
+                    console.log('WebSocket connection established');
+                    
+                    // Envoyer les messages en attente
+                    if (pendingMessages.length > 0) {
+                        pendingMessages.forEach(message => {
+                            sendMessage(message);
+                        });
+                        pendingMessages = [];
                     }
-                    return;
-                }
-                  // Pour les messages sortants, mettre à jour le statut
-                if (data.sender_id === currentUserId) {
-                    console.log('Updating status for outgoing message');
-                    const pendingMessages = document.querySelectorAll('[data-message-pending="true"]');
-                    pendingMessages.forEach(msg => {
-                        if (msg.dataset.messageContent === data.message) {
-                            const statusDiv = msg.querySelector('.message-status');
-                            if (statusDiv) {
-                                statusDiv.textContent = 'Envoyé';
-                                statusDiv.className = 'message-status message-delivered';
-                            }
-                            msg.removeAttribute('data-message-pending');
+                };
+                
+                chatSocket.onmessage = function(e) {
+                    try {
+                        const data = JSON.parse(e.data);
+                        console.log('Client received message:', data);
+                        
+                        // Si erreur, afficher message d'erreur
+                        if (data.error) {
+                            displayError(data.error);
+                            return;
                         }
-                    });
-                } else {
-                    // Ajouter le message à la conversation
-                    console.log('Adding incoming message to chat from sender:', data.sender_id, data.sender_name);
-                    addMessageToChat(data);
-                }
-            };
-              chatSocket.onerror = function(error) {
-                console.error('WebSocket error:', error);
+                        
+                        // Traiter les indicateurs de frappe
+                        if (data.typing) {
+                            console.log('Typing indicator received:', data.typing);
+                            if (data.typing.user_id !== currentUserId) {
+                                if (data.typing.is_typing) {
+                                    typingUserName.textContent = data.typing.user_name;
+                                    typingIndicator.style.display = 'block';
+                                } else {
+                                    typingIndicator.style.display = 'none';
+                                }
+                            }
+                            return;
+                        }
+                        
+                        // Pour les messages sortants, mettre à jour le statut
+                        if (data.sender_id === currentUserId) {
+                            console.log('Updating status for outgoing message');
+                            const pendingMessages = document.querySelectorAll('[data-message-pending="true"]');
+                            pendingMessages.forEach(msg => {
+                                if (msg.dataset.messageContent === data.message) {
+                                    const statusDiv = msg.querySelector('.message-status');
+                                    if (statusDiv) {
+                                        statusDiv.textContent = 'Envoyé';
+                                        statusDiv.className = 'message-status message-delivered';
+                                    }
+                                    msg.removeAttribute('data-message-pending');
+                                    msg.removeAttribute('data-message-content');
+                                }
+                            });
+                        } else {
+                            // Ajouter le message à la conversation
+                            console.log('Adding incoming message to chat from sender:', data.sender_id, data.sender_name);
+                            addMessageToChat(data);
+                        }
+                    } catch (error) {
+                        console.error('Error processing WebSocket message:', error);
+                        displayError('Erreur lors du traitement du message.');
+                    }
+                };
+                
+                chatSocket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    connectionDot.className = 'status-dot status-disconnected';
+                    connectionText.textContent = 'Erreur de connexion';
+                    displayError('Erreur de connexion au chat. Veuillez rafraîchir la page.');
+                };
+                
+                chatSocket.onclose = function(e) {
+                    connectionDot.className = 'status-dot status-disconnected';
+                    connectionText.textContent = 'Déconnecté';
+                    
+                    console.error('Chat socket closed unexpectedly', e);
+                    
+                    // Tenter une reconnexion avec délai exponentiel
+                    if (reconnectAttempts < 5) {
+                        const delay = Math.min(30000, Math.pow(2, reconnectAttempts) * 1000);
+                        reconnectAttempts++;
+                        
+                        connectionText.textContent = `Reconnexion dans ${Math.round(delay/1000)}s...`;
+                        
+                        clearTimeout(socketReconnectTimeout);
+                        socketReconnectTimeout = setTimeout(function() {
+                            initializeWebSocket();
+                        }, delay);
+                    } else {
+                        displayError('La connexion au chat a été perdue. Veuillez rafraîchir la page.');
+                    }
+                };
+            } catch (error) {
+                console.error('Error creating WebSocket connection:', error);
                 connectionDot.className = 'status-dot status-disconnected';
                 connectionText.textContent = 'Erreur de connexion';
-                displayError('Erreur de connexion au chat. Veuillez rafraîchir la page.');
-            };
-            
-            chatSocket.onclose = function(e) {
-                connectionDot.className = 'status-dot status-disconnected';
-                connectionText.textContent = 'Déconnecté';
-                
-                console.error('Chat socket closed unexpectedly', e);
-                
-                // Tenter une reconnexion avec délai exponentiel
-                if (reconnectAttempts < 5) {
-                    const delay = Math.min(30000, Math.pow(2, reconnectAttempts) * 1000);
-                    reconnectAttempts++;
-                    
-                    connectionText.textContent = `Reconnexion dans ${Math.round(delay/1000)}s...`;
-                    
-                    clearTimeout(socketReconnectTimeout);
-                    socketReconnectTimeout = setTimeout(function() {
-                        initializeWebSocket();
-                    }, delay);
-                } else {
-                    displayError('La connexion au chat a été perdue. Veuillez rafraîchir la page.');
-                }
-            };
+                displayError('Impossible de se connecter au chat.');
+            }
         }
-          // Envoyer un message via WebSocket
+        
+        // Envoyer un message via WebSocket
         function sendMessage(message) {
             if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
                 console.log('Sending message:', message);
@@ -707,12 +788,15 @@
             const message = messageInputDom.value.trim();
             
             if (message) {
+                // Limiter la longueur du message
+                const sanitizedMessage = message.slice(0, 2000);
+                
                 // Afficher l'animation d'envoi
                 sendButton.classList.add('btn-sending');
                 
                 // Ajouter le message localement avec statut "en attente"
                 const messageData = {
-                    message: message,
+                    message: sanitizedMessage,
                     sender_id: currentUserId,
                     sender_name: 'Vous',
                     timestamp: new Date().toISOString()
@@ -721,11 +805,20 @@
                 const messageElement = addMessageToChat(messageData, true);
                 
                 // Essayer d'envoyer le message
-                const sent = sendMessage(message);
+                const sent = sendMessage(sanitizedMessage);
                 
                 if (!sent) {
-                    // Si non envoyé, ajouter à la file d'attente
-                    pendingMessages.push(message);
+                    // Si non envoyé, ajouter à la file d'attente (max 10 messages)
+                    if (pendingMessages.length < 10) {
+                        pendingMessages.push(sanitizedMessage);
+                    }
+                    
+                    // Mettre à jour le statut pour indiquer l'échec temporaire
+                    const statusDiv = messageElement.querySelector('.message-status');
+                    if (statusDiv) {
+                        statusDiv.textContent = 'En attente de connexion...';
+                        statusDiv.className = 'message-status message-pending';
+                    }
                 }
                 
                 // Vider le champ de saisie
@@ -746,9 +839,14 @@
                 chatForm.dispatchEvent(new Event('submit'));
             }
         });
-        
+          
         // Faire défiler initialement vers le bas
         scrollToBottom(true);
     });
 </script>
-{% endblock %} 
+
+<!-- Include consolidated messaging fixes JavaScript -->
+<script src="{% static 'js/messaging-fixes.js' %}"></script>
+<!-- Include messaging layout fix to prevent vertical text stacking -->
+<script src="{% static 'js/messaging-layout-fix.js' %}"></script>
+{% endblock %}

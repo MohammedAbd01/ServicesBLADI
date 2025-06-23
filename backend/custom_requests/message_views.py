@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from accounts.models import Utilisateur, Client, Expert
 from .models import Message, Notification, ServiceRequest
+from services.email_notifications import EmailNotificationService
 
 @login_required
 def client_messages_view(request):
@@ -27,23 +28,50 @@ def client_messages_view(request):
     for message in all_messages:
         # Determine the other party in the conversation
         other_party = message.recipient if message.sender == request.user else message.sender
-        
-        # Create a unique key for this conversation
-        conversation_key = f"{min(request.user.id, other_party.id)}_{max(request.user.id, other_party.id)}"
-        
+          # Create a unique key for this conversation
+        conversation_key = f"{min(request.user.id, other_party.id)}_{max(request.user.id, other_party.id)}"            # Check if other_party user object is valid before proceeding
+        if other_party is None or not hasattr(other_party, 'id'):
+            continue
+            
+        # Safely get and truncate message content to prevent display issues
+        try:
+            if message.content:
+                # Limit content length to prevent performance issues
+                safe_content = message.content[:2000]  # Limit to 2000 chars
+                # Replace potentially problematic characters that might cause display issues
+                safe_content = safe_content.replace('<', '&lt;').replace('>', '&gt;')
+            else:
+                safe_content = ""
+        except Exception as e:
+            print(f"Error processing message content: {str(e)}")
+            safe_content = "[Message content unavailable]"
+            
         if conversation_key not in conversations:
             conversations[conversation_key] = {
                 'user': other_party,
                 'latest_message': message,
                 'unread_count': 1 if message.recipient == request.user and not message.is_read else 0,
-                'last_message': message.content[:50] + '...' if len(message.content) > 50 else message.content,
+                'last_message': safe_content[:50] + '...' if len(safe_content) > 50 else safe_content,
                 'last_message_time': message.sent_at
             }
-        else:
-            # Update latest message if this one is newer
+        else:            # Update latest message if this one is newer
             if message.sent_at > conversations[conversation_key]['latest_message'].sent_at:
                 conversations[conversation_key]['latest_message'] = message
-                conversations[conversation_key]['last_message'] = message.content[:50] + '...' if len(message.content) > 50 else message.content
+                
+                # Safely get and truncate message content
+                try:
+                    if message.content:
+                        # Limit content length to prevent performance issues
+                        safe_content = message.content[:2000]  # Limit to 2000 chars
+                        # Replace potentially problematic characters
+                        safe_content = safe_content.replace('<', '&lt;').replace('>', '&gt;')
+                    else:
+                        safe_content = ""
+                except Exception as e:
+                    print(f"Error processing message content: {str(e)}")
+                    safe_content = "[Message content unavailable]"
+                
+                conversations[conversation_key]['last_message'] = safe_content[:50] + '...' if len(safe_content) > 50 else safe_content
                 conversations[conversation_key]['last_message_time'] = message.sent_at
             
             # Update unread count
@@ -56,20 +84,61 @@ def client_messages_view(request):
         key=lambda x: x['latest_message'].sent_at,
         reverse=True
     )
-    
-    # If a contact is selected, get conversation with that contact
+      # If a contact is selected, get conversation with that contact
     if active_contact_id:
-        active_contact = get_object_or_404(Utilisateur, id=active_contact_id)
-        
-        # Get conversation messages
-        messages_list = Message.objects.filter(
-            (Q(sender=request.user) & Q(recipient=active_contact)) |
-            (Q(sender=active_contact) & Q(recipient=request.user))
-        ).order_by('sent_at')
-        
-        # Mark messages as read
-        unread_messages = messages_list.filter(recipient=request.user, is_read=False)
-        unread_messages.update(is_read=True, read_at=timezone.now())
+        try:
+            # Convert to integer to prevent injection
+            active_contact_id = int(active_contact_id)
+            
+            try:
+                active_contact = Utilisateur.objects.get(id=active_contact_id)
+                  # Get conversation messages
+                messages_list = Message.objects.filter(
+                    (Q(sender=request.user) & Q(recipient=active_contact)) |
+                    (Q(sender=active_contact) & Q(recipient=request.user))
+                ).order_by('sent_at')
+                  # Process message content for safety
+                safe_messages = []
+                for msg in messages_list:
+                    try:
+                        # Create a safe copy of the message
+                        safe_msg = msg
+                        
+                        # Sanitize content if it exists
+                        if msg.content:
+                            # Limit content length and sanitize
+                            safe_content = msg.content[:10000]  # 10k char limit for full messages
+                            safe_content = safe_content.replace('<', '&lt;').replace('>', '&gt;')
+                            safe_msg.content = safe_content
+                        else:
+                            safe_msg.content = ""
+                            
+                        safe_messages.append(safe_msg)
+                    except Exception as e:
+                        print(f"Error processing message {msg.id}: {str(e)}")
+                        # Create a safe placeholder message
+                        safe_msg = msg
+                        safe_msg.content = "[Message content could not be displayed]"
+                        safe_messages.append(safe_msg)
+                
+                # Mark messages as read
+                unread_messages = Message.objects.filter(
+                    recipient=request.user, 
+                    is_read=False,
+                    sender=active_contact
+                )
+                unread_messages.update(is_read=True, read_at=timezone.now())
+                
+                # Replace the original messages with sanitized ones
+                messages_list = safe_messages
+            except Utilisateur.DoesNotExist:
+                # If contact doesn't exist, don't crash, just don't show any messages
+                active_contact = None
+                messages_list = []
+        except ValueError:
+            # If contact_id is not a valid integer, don't crash
+            active_contact = None
+            messages_list = []
     
     # Count total unread messages
     unread_messages_count = sum([conv['unread_count'] for conv in conversations.values()])
@@ -95,35 +164,58 @@ def client_send_message(request, recipient_id):
     if not content:
         return redirect('client_messages')
     
-    # Create message
-    message = Message.objects.create(
-        sender=request.user,
-        recipient=recipient,
-        content=content
-    )
-    
-    # Create notification for recipient
-    Notification.objects.create(
-        user=recipient,
-        type='message',
-        title=_('New Message'),
-        content=_(f'You have a new message from {request.user.name} {request.user.first_name}.'),
-        related_message=message
-    )
-    
-    # If it's an AJAX request, return JSON response
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return JsonResponse({
-            'success': True,
-            'message': {
-                'id': message.id,
-                'content': message.content,
-                'sent_at': message.sent_at.isoformat()
-            }
-        })
-    
-    # Otherwise redirect back to the conversation
-    return redirect(f'client_messages?contact={recipient_id}')
+    try:
+        # Sanitize and limit content length to prevent issues
+        if len(content) > 10000:  # Limit to 10k chars
+            content = content[:10000] + "... [message truncated]"
+              # Create message
+        message = Message.objects.create(
+            sender=request.user,
+            recipient=recipient,
+            content=content
+        )
+        
+        # Create notification for recipient
+        Notification.objects.create(
+            user=recipient,
+            type='message',
+            title=_('New Message'),
+            content=_(f'You have a new message from {request.user.name} {request.user.first_name}.'),
+            related_message=message
+        )
+        
+        # Send email notification
+        try:
+            EmailNotificationService.send_new_message_notification(
+                sender=request.user,
+                recipient=recipient,
+                message_content=content
+            )
+        except Exception as email_error:
+            print(f"Failed to send email notification: {email_error}")
+            # Continue without failing the request
+        
+        # If it's an AJAX request, return JSON response
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': {
+                    'id': message.id,
+                    'content': message.content,
+                    'sent_at': message.sent_at.isoformat()
+                }
+            })
+        
+        # Otherwise redirect back to the conversation
+        return redirect(f'/client/messages/?contact={recipient_id}')
+    except Exception as e:
+        print(f"Error sending message: {str(e)}")
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'error': 'An error occurred while sending the message'
+            })
+        return redirect('client_messages')
 
 @login_required
 def client_check_messages(request):
@@ -133,7 +225,14 @@ def client_check_messages(request):
         return JsonResponse({'success': False, 'error': 'Invalid contact ID'})
     
     try:
-        contact = get_object_or_404(Utilisateur, id=contact_id)
+        # Convert contact_id to integer to prevent injection
+        contact_id = int(contact_id)
+        
+        # Try to get the contact user
+        try:
+            contact = Utilisateur.objects.get(id=contact_id)
+        except Utilisateur.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Contact not found'})
         
         # Check for new unread messages from this contact
         new_messages = Message.objects.filter(
@@ -149,6 +248,10 @@ def client_check_messages(request):
     except ValueError:
         # Handle the case where contact_id is not a valid integer
         return JsonResponse({'success': False, 'error': 'Invalid contact ID format'})
+    except Exception as e:
+        # Log the error and return a generic error message
+        print(f"Error in client_check_messages: {str(e)}")
+        return JsonResponse({'success': False, 'error': 'An error occurred while checking messages'})
 
 @login_required
 def expert_messages_view(request):
@@ -198,16 +301,24 @@ def expert_messages_view(request):
     # If a client is selected, get conversation with that client
     if active_client_id:
         active_client = get_object_or_404(Utilisateur, id=active_client_id)
-        
-        # Get conversation messages
+          # Get conversation messages
         messages_list = Message.objects.filter(
             (Q(sender=request.user) & Q(recipient=active_client)) |
             (Q(sender=active_client) & Q(recipient=request.user))
         ).order_by('sent_at')
-        
-        # Mark messages as read
-        unread_messages = messages_list.filter(recipient=request.user, is_read=False)
+          # Mark messages as read - using Message.objects to ensure we're working with a QuerySet
+        unread_messages = Message.objects.filter(
+            recipient=request.user, 
+            is_read=False,
+            sender=active_client
+        )
         unread_messages.update(is_read=True, read_at=timezone.now())
+          # Limit message count to prevent memory issues (show only last 100 messages)
+        messages_list = messages_list[:100]
+        
+        # Process message content for safety - using a more efficient approach
+        # Instead of creating copies, we'll sanitize in the template or use a property
+        # This prevents memory issues from object duplication
     
     # Count total unread messages
     unread_messages_count = sum([client.get('unread_count', 0) for client in clients])
@@ -240,8 +351,7 @@ def expert_send_message(request, client_id):
         recipient=client,
         content=content
     )
-    
-    # Create notification for client
+      # Create notification for client
     Notification.objects.create(
         user=client,
         type='message',
@@ -249,6 +359,17 @@ def expert_send_message(request, client_id):
         content=_(f'You have a new message from your expert {request.user.name} {request.user.first_name}.'),
         related_message=message
     )
+    
+    # Send email notification
+    try:
+        EmailNotificationService.send_new_message_notification(
+            sender=request.user,
+            recipient=client,
+            message_content=content
+        )
+    except Exception as email_error:
+        print(f"Failed to send email notification: {email_error}")
+        # Continue without failing the request
     
     # If it's an AJAX request, return JSON response
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -260,9 +381,8 @@ def expert_send_message(request, client_id):
                 'sent_at': message.sent_at.isoformat()
             }
         })
-    
-    # Otherwise redirect back to the conversation
-    return redirect(f'expert_messages?client={client_id}')
+      # Otherwise redirect back to the conversation
+    return redirect(f'/expert/messages/?client={client_id}')
 
 @login_required
 def expert_check_messages(request):

@@ -28,7 +28,7 @@
   }
 
   .profile-header {
-    background: linear-gradient(135deg, #0ea2bd 0%, #0bc9ee 100%);
+    background: linear-gradient(135deg, #C49A5A 0%, #D4B483 100%);
     color: white;
     padding: 3rem 2rem;
     position: relative;
@@ -50,7 +50,7 @@
   
   .profile-avatar i {
     font-size: 4rem;
-    color: #0ea2bd;
+    color: #0bc9ee;
   }
   
   .profile-name {
@@ -123,7 +123,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #0ea2bd;
+    background: linear-gradient(135deg, #C49A5A 0%, #D4B483 100%);
     color: white;
     padding: 15px 20px;
     border-bottom: none;
@@ -139,13 +139,14 @@
     margin-bottom: 1.5rem;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid #e0e0e0;
-    color: #0ea2bd;
+    color: #C49A5A;
     display: flex;
     align-items: center;
   }
   
   .section-title i {
     margin-right: 10px;
+    color: #C49A5A;
   }
   
   .action-btn {
@@ -192,13 +193,25 @@
   
   /* Animation pour mettre en évidence le bouton de modification */
   @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(14, 162, 189, 0.7); }
-    70% { box-shadow: 0 0 0 10px rgba(14, 162, 189, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(14, 162, 189, 0); }
+    0% { box-shadow: 0 0 0 0 rgba(11, 201, 238, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(11, 201, 238, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(11, 201, 238, 0); }
   }
   
   .btn-pulse {
     animation: pulse 2s infinite;
+  }
+
+  .dashboard-card .card-header h4 {
+    color: white;
+    margin: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .dashboard-card .card-header h4 i {
+    font-size: 1.5rem;
+    margin-right: 10px;
   }
 </style>
 {% endblock %}
@@ -207,7 +220,7 @@
 <!-- En-tête de page avec titre -->
 <div class="dashboard-card mb-4">
     <div class="card-header">
-        <h4 class="m-0"><i class="bi bi-person-circle me-2"></i>{% trans "Mon Profil Administrateur" %}</h4>
+        <h4 class="m-0"><i class="bi bi-person-badge-fill me-2"></i>{% trans "Mon Profil Administrateur" %}</h4>
         <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-light"><i class="bi bi-arrow-left me-2"></i>{% trans "Retour au Tableau de Bord" %}</a>
     </div>
 </div>

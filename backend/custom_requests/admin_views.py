@@ -23,6 +23,7 @@ from accounts.forms import UserEditForm
 from custom_requests.models import ServiceRequest, Document, RendezVous, Message, Notification
 from services.models import Service, ServiceCategory
 from resources.models import Resource, ResourceFile
+from services.email_notifications import EmailNotificationService
 
 @login_required
 def admin_requests_view(request):
@@ -79,7 +80,7 @@ def admin_requests_view(request):
         
         # Get statistics for dashboard
         total_requests = service_requests.count()
-        pending_requests = service_requests.filter(status='pending').count()
+        pending_requests = service_requests.filter(status__in=['new', 'pending_info']).count()
         in_progress_requests = service_requests.filter(status='in_progress').count()
         completed_requests = service_requests.filter(status='completed').count()
         
@@ -273,12 +274,18 @@ def admin_add_user(request):
                 account_type=account_type,
                 is_active=is_active
             )
-            
-            # Create related profile based on account type
+              # Create related profile based on account type
             if account_type == 'client':
                 Client.objects.create(user=user)
             elif account_type == 'expert':
                 Expert.objects.create(user=user)
+            
+            # Send welcome email notification
+            try:
+                EmailNotificationService.send_welcome_email(user, password)
+            except Exception as email_error:
+                print(f"Failed to send welcome email: {email_error}")
+                # Continue without failing the request
             
             messages.success(request, f"L'utilisateur {first_name} {name} a été créé avec succès.")
             return redirect('admin_users')
@@ -554,121 +561,133 @@ def admin_delete_document(request, document_id):
 @login_required
 def admin_complete_appointment(request, appointment_id):
     """Mark an appointment as completed"""
-    
-    # Check if user is admin
-    if request.user.account_type.lower() != 'admin':
-        return redirect('home')
-    
-    try:
-        appointment = get_object_or_404(RendezVous, id=appointment_id)
-        appointment.status = 'completed'
-        appointment.save()
+    if not request.user.is_staff:
+        messages.error(request, _('You do not have permission to perform this action.'))
+        return redirect('admin_rendezvous')
         
-        messages.success(request, f"Le rendez-vous a été marqué comme complété.")
-        
-        # If this is an AJAX request, return JSON response
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'message': f"Le rendez-vous a été marqué comme complété."
-            })
+    appointment = get_object_or_404(RendezVous, id=appointment_id)
     
-    except Exception as e:
-        messages.error(request, f"Erreur: {str(e)}")
-        
-        # If this is an AJAX request, return JSON response
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': False,
-                'message': f"Erreur: {str(e)}"
-            })
+    if appointment.status not in ['scheduled', 'confirmed']:
+        messages.error(request, _('This appointment cannot be marked as completed.'))
+        return redirect('admin_rendezvous')
     
+    appointment.status = 'completed'
+    appointment.save()
+    
+    # Create notification for the client
+    Notification.objects.create(
+        user=appointment.client,
+        type='appointment_update',
+        title=_('Appointment Completed'),
+        content=_(f'Your appointment on {appointment.date_time.strftime("%Y-%m-%d %H:%M")} has been marked as completed.'),
+        related_rendez_vous=appointment
+    )
+    
+    messages.success(request, _('Appointment marked as completed.'))
     return redirect('admin_rendezvous')
 
 @login_required
 def admin_cancel_appointment(request, appointment_id):
     """Cancel an appointment"""
-    
-    # Check if user is admin
-    if request.user.account_type.lower() != 'admin':
-        return redirect('home')
-    
-    try:
-        appointment = get_object_or_404(RendezVous, id=appointment_id)
-        appointment.status = 'cancelled'
-        cancellation_reason = request.POST.get('cancellation_reason', '')
-        appointment.notes = f"Annulé par l'administrateur. Raison: {cancellation_reason}"
-        appointment.save()
+    if not request.user.is_staff:
+        messages.error(request, _('You do not have permission to perform this action.'))
+        return redirect('admin_rendezvous')
         
-        messages.success(request, f"Le rendez-vous a été annulé.")
-        
-        # If this is an AJAX request, return JSON response
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'message': f"Le rendez-vous a été annulé."
-            })
+    appointment = get_object_or_404(RendezVous, id=appointment_id)
     
-    except Exception as e:
-        messages.error(request, f"Erreur: {str(e)}")
-        
-        # If this is an AJAX request, return JSON response
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': False,
-                'message': f"Erreur: {str(e)}"
-            })
+    if appointment.status not in ['scheduled', 'confirmed']:
+        messages.error(request, _('This appointment cannot be cancelled.'))
+        return redirect('admin_rendezvous')
     
+    appointment.status = 'cancelled'
+    appointment.save()
+      # Create notification for the client
+    Notification.objects.create(
+        user=appointment.client,
+        type='appointment_update',
+        title=_('Appointment Cancelled'),
+        content=_(f'Your appointment on {appointment.date_time.strftime("%Y-%m-%d %H:%M")} has been cancelled.'),
+        related_rendez_vous=appointment
+    )
+    
+    # Send email notification to client about appointment cancellation
+    EmailNotificationService.send_appointment_notification(
+        client=appointment.client,
+        expert=appointment.expert,
+        appointment=appointment,
+        notification_type='cancelled'
+    )
+    
+    # Send email notification to expert about appointment cancellation
+    EmailNotificationService.send_appointment_notification(
+        client=appointment.expert,
+        expert=appointment.client,
+        appointment=appointment,
+        notification_type='cancelled'
+    )
+
+    messages.success(request, _('Appointment cancelled successfully.'))
     return redirect('admin_rendezvous')
 
 @login_required
 def admin_reschedule_appointment(request, appointment_id):
     """Reschedule an appointment"""
-    
-    # Check if user is admin
-    if request.user.account_type.lower() != 'admin':
-        return redirect('home')
-    
-    if request.method != 'POST':
+    if not request.user.is_staff:
+        messages.error(request, _('You do not have permission to perform this action.'))
         return redirect('admin_rendezvous')
+        
+    appointment = get_object_or_404(RendezVous, id=appointment_id)
     
-    try:
-        appointment = get_object_or_404(RendezVous, id=appointment_id)
+    if request.method == 'POST':
+        new_date = request.POST.get('new_date')
+        new_time = request.POST.get('new_time')
         
-        # Get new date and time from POST data
-        new_date = request.POST.get('date', '')
-        new_time = request.POST.get('time', '')
-        
-        if not new_date or not new_time:
-            messages.error(request, "La date et l'heure doivent être spécifiées.")
+        try:
+            new_datetime = datetime.strptime(f"{new_date} {new_time}", '%Y-%m-%d %H:%M')
+            
+            # Check if the new time slot is available
+            if RendezVous.objects.filter(
+                expert=appointment.expert,
+                date_time=new_datetime,
+                status__in=['scheduled', 'confirmed']
+            ).exclude(id=appointment.id).exists():
+                messages.error(request, _('This time slot is not available.'))
+                return redirect('admin_rendezvous')
+            
+            old_datetime = appointment.date_time
+            appointment.date_time = new_datetime
+            appointment.save()
+              # Create notification for the client
+            Notification.objects.create(
+                user=appointment.client,
+                type='appointment_update',
+                title=_('Appointment Rescheduled'),
+                content=_(f'Your appointment has been rescheduled from {old_datetime.strftime("%Y-%m-%d %H:%M")} to {new_datetime.strftime("%Y-%m-%d %H:%M")}.'),
+                related_rendez_vous=appointment
+            )
+            
+            # Send email notification to client about appointment reschedule
+            EmailNotificationService.send_appointment_notification(
+                client=appointment.client,
+                expert=appointment.expert,
+                appointment=appointment,
+                notification_type='rescheduled'
+            )
+            
+            # Send email notification to expert about appointment reschedule
+            EmailNotificationService.send_appointment_notification(
+                client=appointment.expert,
+                expert=appointment.client,
+                appointment=appointment,
+                notification_type='rescheduled'
+            )
+
+            messages.success(request, _('Appointment rescheduled successfully.'))
             return redirect('admin_rendezvous')
-        
-        # Update the appointment
-        appointment.date = datetime.strptime(new_date, '%Y-%m-%d').date()
-        appointment.time = new_time
-        appointment.save()
-        
-        # Notify client and expert about the rescheduling
-        # This could be implemented with a notification system
-        
-        messages.success(request, f"Le rendez-vous a été replanifié pour le {new_date} à {new_time}.")
-        
-        # If this is an AJAX request, return JSON response
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'message': f"Le rendez-vous a été replanifié pour le {new_date} à {new_time}."
-            })
-    
-    except Exception as e:
-        messages.error(request, f"Erreur lors de la replanification: {str(e)}")
-        
-        # If this is an AJAX request, return JSON response
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': False,
-                'message': f"Erreur lors de la replanification: {str(e)}"
-            })
+            
+        except ValueError:
+            messages.error(request, _('Invalid date or time format.'))
+            return redirect('admin_rendezvous')
     
     return redirect('admin_rendezvous')
 
@@ -730,41 +749,46 @@ def admin_edit_resource(request, resource_id):
     """
     # Check if user is an admin
     if request.user.account_type.lower() != 'admin':
+        messages.error(request, _('Vous n\'avez pas les permissions nécessaires.'))
         return redirect('home')
     
     # Get the resource or return 404
     resource = get_object_or_404(Resource, id=resource_id)
     
     if request.method == 'POST':
-        # Update resource fields
-        resource.title = request.POST.get('title')
-        resource.description = request.POST.get('description')
-        resource.category = request.POST.get('category')
-        resource.is_active = request.POST.get('is_public') == 'on'
-        resource.available_formats = request.POST.get('available_formats', 'pdf')
-        
-        # Save the resource
-        resource.save()
-        
-        # Handle file upload
-        if request.FILES.get('file'):
-            file = request.FILES.get('file')
+        try:
+            # Update resource fields
+            resource.title = request.POST.get('title')
+            resource.description = request.POST.get('description')
+            resource.category = request.POST.get('category')
+            resource.is_active = request.POST.get('is_public') == 'on'
+            resource.available_formats = request.POST.get('available_formats', 'pdf')
             
-            # Delete existing file(s) first to avoid duplicates
-            ResourceFile.objects.filter(resource=resource).delete()
+            # Save the resource
+            resource.save()
             
-            # Create new resource file
-            ResourceFile.objects.create(
-                resource=resource,
-                language='fr',  # Default language
-                file=file,
-                file_format='pdf',  # Default format
-                file_size=int(file.size / 1024) if file.size else 0,  # Convert bytes to KB
-            )
-        
-        # Set success message
-        messages.success(request, _('Resource updated successfully.'))
-        return redirect('admin_ressources')
+            # Handle file upload
+            if request.FILES.get('file'):
+                file = request.FILES.get('file')
+                
+                # Delete existing file(s) first to avoid duplicates
+                ResourceFile.objects.filter(resource=resource).delete()
+                
+                # Create new resource file
+                ResourceFile.objects.create(
+                    resource=resource,
+                    language='fr',  # Default language
+                    file=file,
+                    file_format=resource.available_formats,  # Use selected format
+                    file_size=int(file.size / 1024) if file.size else 0,  # Convert bytes to KB
+                )
+            
+            # Set success message
+            messages.success(request, _('La ressource a été mise à jour avec succès.'))
+            return redirect('admin_ressources')
+            
+        except Exception as e:
+            messages.error(request, _(f'Erreur lors de la mise à jour de la ressource: {str(e)}'))
     
     # If GET request, display edit form with resource data
     categories = [choice[0] for choice in Resource.CATEGORIES]
@@ -868,7 +892,7 @@ def admin_resources_view(request):
             
         if visibility:
             is_public = visibility == 'public'
-            resources = resources.filter(is_active=is_public)  # Using is_active instead of is_public
+            resources = resources.filter(is_active=is_public)
                 
         if search_query:
             resources = resources.filter(
@@ -881,56 +905,50 @@ def admin_resources_view(request):
         resources = resources.order_by('-created_at')
         
         # Get statistics for dashboard
-        total_resources = resources.count()
-        # Use is_active for public/private status since that's what we have
-        public_resources = resources.filter(is_active=True).count()
-        private_resources = resources.filter(is_active=False).count()
+        total_resources = Resource.objects.count()
+        public_resources = Resource.objects.filter(is_active=True).count()  # Ressources publiques (verrou ouvert)
+        private_resources = Resource.objects.filter(is_active=False).count()  # Ressources privées (verrou fermé)
         
-        # Use proper fields that exist in the Resource model
-        # All resources appear to use 'pdf' as available_formats
+        # Get document types count
         document_count = resources.filter(available_formats='pdf').count()
         video_count = 0  # Pas de vidéos dans les données actuelles
         
         # Get resources with highest download count
         popular_resources = resources.order_by('-download_count')[:5]
-        visibilities = ['public', 'private']  # Options pour le filtre de visibilité
         
         # Get categories for filters
         categories = Resource.objects.values_list('category', flat=True).distinct()
         
         # Pagination
-        paginator = Paginator(resources, 12)  # 12 resources per page (better for grid)
+        paginator = Paginator(resources, 12)  # 12 resources per page
         page = request.GET.get('page')
         
         try:
             resources_page = paginator.page(page)
         except PageNotAnInteger:
-            # If page is not an integer, deliver first page
             resources_page = paginator.page(1)
         except EmptyPage:
-            # If page is out of range, deliver last page of results
             resources_page = paginator.page(paginator.num_pages)
         
         context = {
             'user': request.user,
             'resources': resources_page,
             'categories': categories,
-            'visibilities': visibilities,
             'category_filter': category,
             'visibility_filter': visibility,
             'search_query': search_query,
-            # Variables directes
+            # Variables directes pour les cartes statistiques
             'total_resources': total_resources,
-            'public_resources': public_resources,
-            'private_resources': private_resources,
+            'public_resources': public_resources,  # Ressources avec verrou ouvert
+            'private_resources': private_resources,  # Ressources avec verrou fermé
             'document_count': document_count,
             'video_count': video_count,
             'popular_resources': popular_resources,
             # Structure stats
             'stats': {
                 'total': total_resources,
-                'public': public_resources,
-                'private': private_resources,
+                'public': public_resources,  # Ressources avec verrou ouvert
+                'private': private_resources,  # Ressources avec verrou fermé
                 'documents': document_count,
                 'videos': video_count
             }
@@ -1104,10 +1122,9 @@ def admin_documents_view(request):
         # Base queryset - correct the field names based on Document model
         documents = Document.objects.select_related('uploaded_by', 'service_request')
         
-        # Apply filters - Note: If 'status' is not a field in the Document model, we skip this filter
-        # Remove this block if status is not used in your Document model
-        # if status_filter:
-        #    documents = documents.filter(status=status_filter)
+        # Apply filters
+        if status_filter:
+            documents = documents.filter(status=status_filter)
             
         if document_type:
             documents = documents.filter(type=document_type)
@@ -1127,14 +1144,12 @@ def admin_documents_view(request):
         documents = documents.order_by('-upload_date')
         
         # Get statistics for dashboard
-        total_documents = documents.count()
-        # Since status is not a field in Document model, we can't filter by it
-        # Instead, we'll just set these values to 0 or find alternative ways to categorize documents
-        verified_documents = 0  # Replace with appropriate logic if needed
-        pending_documents = 0   # Replace with appropriate logic if needed
-        rejected_documents = 0  # Replace with appropriate logic if needed
+        total_documents = Document.objects.count()
+        verified_documents = Document.objects.filter(status='verified').count()
+        pending_documents = Document.objects.filter(status='pending').count()
+        rejected_documents = Document.objects.filter(status='rejected').count()
         
-        # Get document types for filters - correct field name
+        # Get document types for filters
         document_types = Document.objects.values_list('type', flat=True).distinct()
         
         # Get clients for filters
@@ -1373,14 +1388,18 @@ def admin_assign_expert(request, request_id):
             demande.expert = expert_user
             demande.status = 'in_progress'  # Change status to in progress
             demande.save()
-            
-            # Notify the expert
+              # Notify the expert
             Notification.objects.create(
                 user=expert_user,
                 type='request_assignment',
                 title=_('New Assignment'),
                 content=_(f'You have been assigned to the request "{demande.title}" by {request.user.name} {request.user.first_name}.'),
                 related_service_request=demande
+            )
+            
+            # Send email notification to expert
+            EmailNotificationService.send_expert_assignment_notification(
+                expert_user, demande
             )
             
             # Also notify the client
@@ -1390,6 +1409,11 @@ def admin_assign_expert(request, request_id):
                 title=_('Expert Assigned'),
                 content=_(f'An expert has been assigned to your request "{demande.title}".'),
                 related_service_request=demande
+            )
+            
+            # Send email notification to client
+            EmailNotificationService.send_request_status_update(
+                demande.client, expert_user, demande, 'in_progress'
             )
             
             # Add notes as a message if provided
@@ -1447,8 +1471,7 @@ def admin_update_request_status(request, request_id):
                         content=_('Statut mis à jour: ') + comment,
                         service_request=demande
                     )
-            
-            # Create notification for client
+              # Create notification for client
             status_translated = dict(ServiceRequest.STATUS_CHOICES).get(new_status, new_status)
             Notification.objects.create(
                 user=demande.client,
@@ -1456,6 +1479,11 @@ def admin_update_request_status(request, request_id):
                 title=_('Statut de la demande mis à jour'),
                 content=_(f'Le statut de votre demande "{demande.title}" a été mis à jour à "{status_translated}".'),
                 related_service_request=demande
+            )
+            
+            # Send email notification to client
+            EmailNotificationService.send_request_status_update(
+                demande.client, demande.expert, demande, new_status
             )
             
             # Create notification for expert if assigned
@@ -1466,6 +1494,11 @@ def admin_update_request_status(request, request_id):
                     title=_('Statut de la demande mis à jour'),
                     content=_(f'Le statut de la demande "{demande.title}" a été mis à jour à "{status_translated}".'),
                     related_service_request=demande
+                )
+                
+                # Send email notification to expert
+                EmailNotificationService.send_request_status_update(
+                    demande.expert, demande.expert, demande, new_status
                 )
             
             messages.success(request, _('Le statut de la demande a été mis à jour avec succès.'))
@@ -1508,7 +1541,7 @@ def admin_request_detail(request, request_id):
         
         context = {
             'user': request.user,
-            'service_request': service_request,
+            'demande': service_request,
             'documents': documents,
             'messages_list': messages_list,
             'appointments': appointments,
@@ -1559,8 +1592,7 @@ def admin_send_message(request):
             content=content,
             service_request=service_request
         )
-        
-        # Create notification for recipient
+          # Create notification for recipient
         Notification.objects.create(
             user=recipient,
             type='message',
@@ -1569,6 +1601,17 @@ def admin_send_message(request):
             related_message=message,
             related_service_request=service_request
         )
+        
+        # Send email notification
+        try:
+            EmailNotificationService.send_new_message_notification(
+                sender=request.user,
+                recipient=recipient,
+                message_content=content
+            )
+        except Exception as email_error:
+            print(f"Failed to send email notification: {email_error}")
+            # Continue without failing the request
         
         messages.success(request, _('Message sent successfully.'))
         
@@ -1650,3 +1693,12 @@ def admin_user_detail(request, user_id):
     except Exception as e:
         messages.error(request, f"Erreur: {str(e)}")
         return redirect('admin_users')
+
+@login_required
+def admin_add_expert_view(request):
+    """Admin view to add a new expert"""
+    # Check if user is admin
+    if request.user.account_type.lower() != 'admin':
+        return redirect('home')
+    
+    return render(request, 'admin/add_expert.html')

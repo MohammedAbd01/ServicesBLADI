@@ -17,13 +17,27 @@ from django.utils.translation import gettext_lazy as _
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Azure environment detection
+IS_AZURE = os.environ.get('WEBSITE_HOSTNAME') is not None
+IS_PRODUCTION = IS_AZURE or os.environ.get('DJANGO_ENV') == 'production'
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-dj217004uhfoid4ut98h9843h98fn-dkn2f808jf9jkef'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dj217004uhfoid4ut98h9843h98fn-dkn2f808jf9jkef')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = not IS_PRODUCTION
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.servicesbladi.com']
+# Azure-specific allowed hosts configuration
+if IS_AZURE:
+    ALLOWED_HOSTS = [
+        os.environ.get('WEBSITE_HOSTNAME', ''),
+        '.servicesbladi.com',
+        '.azurewebsites.net',
+        'localhost',
+        '127.0.0.1'
+    ]
+else:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.servicesbladi.com']
 
 # Application definition
 
@@ -36,10 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Third party apps
-    'crispy_forms',
-    'crispy_bootstrap5',
     'rest_framework',
-
     # Custom apps
     'accounts',
     'services',
@@ -47,12 +58,14 @@ INSTALLED_APPS = [
     'resources',
     'channels',  # Ajouter Django Channels
     'messaging',  # Application de messagerie
+    'chatbot',  # Application chatbot MRE
 ]
 
 AUTH_USER_MODEL = 'accounts.Utilisateur'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise for Azure static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -70,10 +83,10 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
             os.path.join(BASE_DIR, '../frontend/template'),
+            os.path.join(BASE_DIR, 'templates'),  # Add backend templates directory
         ],
         'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
+        'OPTIONS': {            'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
@@ -82,6 +95,7 @@ TEMPLATES = [
                 'servicesbladi.context_processors.language_context',  # Custom context processor for language
                 'servicesbladi.context_processors.notifications_context',  # Custom context processor for notifications
                 'servicesbladi.context_processors.cache_version_context',  # Cache version processor
+                'chatbot.context_processors.chatbot_context',  # Chatbot MRE context processor
             ],
         },
     },
@@ -93,20 +107,39 @@ WSGI_APPLICATION = 'servicesbladi.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'servicesbladi',
-        'USER': 'root',
-        'PASSWORD': '',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            'charset': 'utf8mb4',
-        },
+if IS_AZURE:
+    # Azure MySQL database configuration
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('AZURE_MYSQL_NAME', 'servicesbladi'),
+            'USER': os.environ.get('AZURE_MYSQL_USER', 'root'),
+            'PASSWORD': os.environ.get('AZURE_MYSQL_PASSWORD', ''),
+            'HOST': os.environ.get('AZURE_MYSQL_HOST', '127.0.0.1'),
+            'PORT': os.environ.get('AZURE_MYSQL_PORT', '3306'),
+            'OPTIONS': {
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+                'charset': 'utf8mb4',
+                'ssl': False,  # Disable SSL for Azure compatibility
+            },
+        }
     }
-}
+else:
+    # Local development database configuration
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'servicesbladi',
+            'USER': 'root',
+            'PASSWORD': '',
+            'HOST': '127.0.0.1',
+            'PORT': '3306',
+            'OPTIONS': {
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+                'charset': 'utf8mb4',
+            },
+        }
+    }
 
 
 # Password validation
@@ -161,31 +194,35 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, '../frontend/static'),
 ]
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-# Ajouter versioning aux fichiers statiques pour éviter les problèmes de cache
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
+# Azure-specific static files configuration
+if IS_AZURE:
+    STATIC_ROOT = '/home/site/wwwroot/staticfiles'
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+else:
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
 
-# Media files
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# Media files configuration
+if IS_AZURE:
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = '/home/site/wwwroot/media'
+else:
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Crispy Forms settings
-CRISPY_ALLOWED_TEMPLATE_PACKS = 'bootstrap5'
-CRISPY_TEMPLATE_PACK = 'bootstrap5'
-
 # Login and logout URLs
 LOGIN_URL = 'accounts:login'
 LOGIN_REDIRECT_URL = 'accounts:dashboard_redirect'
 LOGOUT_REDIRECT_URL = 'home'
 
-# Email settings (for development)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Email Configuration (using SMTP for production)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 # REST Framework settings
 REST_FRAMEWORK = {
@@ -200,20 +237,203 @@ REST_FRAMEWORK = {
 # Custom settings for ServicesBLADI
 SERVICESBLADI_ADMIN_EMAIL = 'admin@servicesbladi.com'
 SERVICESBLADI_SUPPORT_EMAIL = 'support@servicesbladi.com'
-SERVICESBLADI_CONTACT_EMAIL = 'contact@servicesbladi.com'
+SERVICESBLADI_CONTACT_EMAIL = 'abidou.mohammed03@gmail.com'
 
 # List of countries for form choices
 COUNTRIES = [
-    ('MA', _('Morocco')),
-    ('FR', _('France')),
-    ('ES', _('Spain')),
-    ('BE', _('Belgium')),
+    ('AF', _('Afghanistan')),
+    ('AL', _('Albanie')),
+    ('DZ', _('Algérie')),
+    ('AD', _('Andorre')),
+    ('AO', _('Angola')),
+    ('AG', _('Antigua-et-Barbuda')),
+    ('AR', _('Argentine')),
+    ('AM', _('Arménie')),
+    ('AU', _('Australie')),
+    ('AT', _('Autriche')),
+    ('AZ', _('Azerbaïdjan')),
+    ('BS', _('Bahamas')),
+    ('BH', _('Bahreïn')),
+    ('BD', _('Bangladesh')),
+    ('BB', _('Barbade')),
+    ('BY', _('Biélorussie')),
+    ('BE', _('Belgique')),
+    ('BZ', _('Belize')),
+    ('BJ', _('Bénin')),
+    ('BT', _('Bhoutan')),
+    ('BO', _('Bolivie')),
+    ('BA', _('Bosnie-Herzégovine')),
+    ('BW', _('Botswana')),
+    ('BR', _('Brésil')),
+    ('BN', _('Brunei')),
+    ('BG', _('Bulgarie')),
+    ('BF', _('Burkina Faso')),
+    ('BI', _('Burundi')),
+    ('KH', _('Cambodge')),
+    ('CM', _('Cameroun')),
     ('CA', _('Canada')),
-    ('IT', _('Italy')),
-    ('DE', _('Germany')),
-    ('NL', _('Netherlands')),
-    ('GB', _('United Kingdom')),
-    ('US', _('United States')),
+    ('CV', _('Cap-Vert')),
+    ('CF', _('République centrafricaine')),
+    ('TD', _('Tchad')),
+    ('CL', _('Chili')),
+    ('CN', _('Chine')),
+    ('CO', _('Colombie')),
+    ('KM', _('Comores')),
+    ('CG', _('Congo')),
+    ('CR', _('Costa Rica')),
+    ('HR', _('Croatie')),
+    ('CU', _('Cuba')),
+    ('CY', _('Chypre')),
+    ('CZ', _('République tchèque')),
+    ('DK', _('Danemark')),
+    ('DJ', _('Djibouti')),
+    ('DM', _('Dominique')),
+    ('DO', _('République dominicaine')),
+    ('EC', _('Équateur')),
+    ('EG', _('Égypte')),
+    ('SV', _('El Salvador')),
+    ('GQ', _('Guinée équatoriale')),
+    ('ER', _('Érythrée')),
+    ('EE', _('Estonie')),
+    ('ET', _('Éthiopie')),
+    ('FJ', _('Fidji')),
+    ('FI', _('Finlande')),
+    ('FR', _('France')),
+    ('GA', _('Gabon')),
+    ('GM', _('Gambie')),
+    ('GE', _('Géorgie')),
+    ('DE', _('Allemagne')),
+    ('GH', _('Ghana')),
+    ('GR', _('Grèce')),
+    ('GD', _('Grenade')),
+    ('GT', _('Guatemala')),
+    ('GN', _('Guinée')),
+    ('GW', _('Guinée-Bissau')),
+    ('GY', _('Guyana')),
+    ('HT', _('Haïti')),
+    ('HN', _('Honduras')),
+    ('HU', _('Hongrie')),
+    ('IS', _('Islande')),
+    ('IN', _('Inde')),
+    ('ID', _('Indonésie')),
+    ('IR', _('Iran')),
+    ('IQ', _('Irak')),
+    ('IE', _('Irlande')),
+    ('IL', _('Israël')),
+    ('IT', _('Italie')),
+    ('JM', _('Jamaïque')),
+    ('JP', _('Japon')),
+    ('JO', _('Jordanie')),
+    ('KZ', _('Kazakhstan')),
+    ('KE', _('Kenya')),
+    ('KI', _('Kiribati')),
+    ('KP', _('Corée du Nord')),
+    ('KR', _('Corée du Sud')),
+    ('KW', _('Koweït')),
+    ('KG', _('Kirghizistan')),
+    ('LA', _('Laos')),
+    ('LV', _('Lettonie')),
+    ('LB', _('Liban')),
+    ('LS', _('Lesotho')),
+    ('LR', _('Libéria')),
+    ('LY', _('Libye')),
+    ('LI', _('Liechtenstein')),
+    ('LT', _('Lituanie')),
+    ('LU', _('Luxembourg')),
+    ('MK', _('Macédoine du Nord')),
+    ('MG', _('Madagascar')),
+    ('MW', _('Malawi')),
+    ('MY', _('Malaisie')),
+    ('MV', _('Maldives')),
+    ('ML', _('Mali')),
+    ('MT', _('Malte')),
+    ('MH', _('Îles Marshall')),
+    ('MR', _('Mauritanie')),
+    ('MU', _('Maurice')),
+    ('MX', _('Mexique')),
+    ('FM', _('Micronésie')),
+    ('MD', _('Moldavie')),
+    ('MC', _('Monaco')),
+    ('MN', _('Mongolie')),
+    ('ME', _('Monténégro')),
+    ('MA', _('Maroc')),
+    ('MZ', _('Mozambique')),
+    ('MM', _('Myanmar')),
+    ('NA', _('Namibie')),
+    ('NR', _('Nauru')),
+    ('NP', _('Népal')),
+    ('NL', _('Pays-Bas')),
+    ('NZ', _('Nouvelle-Zélande')),
+    ('NI', _('Nicaragua')),
+    ('NE', _('Niger')),
+    ('NG', _('Nigeria')),
+    ('NO', _('Norvège')),
+    ('OM', _('Oman')),
+    ('PK', _('Pakistan')),
+    ('PW', _('Palaos')),
+    ('PS', _('Palestine')),
+    ('PA', _('Panama')),
+    ('PG', _('Papouasie-Nouvelle-Guinée')),
+    ('PY', _('Paraguay')),
+    ('PE', _('Pérou')),
+    ('PH', _('Philippines')),
+    ('PL', _('Pologne')),
+    ('PT', _('Portugal')),
+    ('QA', _('Qatar')),
+    ('RO', _('Roumanie')),
+    ('RU', _('Russie')),
+    ('RW', _('Rwanda')),
+    ('KN', _('Saint-Kitts-et-Nevis')),
+    ('LC', _('Sainte-Lucie')),
+    ('VC', _('Saint-Vincent-et-les-Grenadines')),
+    ('WS', _('Samoa')),
+    ('SM', _('Saint-Marin')),
+    ('ST', _('São Tomé-et-Principe')),
+    ('SA', _('Arabie saoudite')),
+    ('SN', _('Sénégal')),
+    ('RS', _('Serbie')),
+    ('SC', _('Seychelles')),
+    ('SL', _('Sierra Leone')),
+    ('SG', _('Singapour')),
+    ('SK', _('Slovaquie')),
+    ('SI', _('Slovénie')),
+    ('SB', _('Îles Salomon')),
+    ('SO', _('Somalie')),
+    ('ZA', _('Afrique du Sud')),
+    ('SS', _('Soudan du Sud')),
+    ('ES', _('Espagne')),
+    ('LK', _('Sri Lanka')),
+    ('SD', _('Soudan')),
+    ('SR', _('Suriname')),
+    ('SE', _('Suède')),
+    ('CH', _('Suisse')),
+    ('SY', _('Syrie')),
+    ('TW', _('Taïwan')),
+    ('TJ', _('Tadjikistan')),
+    ('TZ', _('Tanzanie')),
+    ('TH', _('Thaïlande')),
+    ('TL', _('Timor oriental')),
+    ('TG', _('Togo')),
+    ('TO', _('Tonga')),
+    ('TT', _('Trinité-et-Tobago')),
+    ('TN', _('Tunisie')),
+    ('TR', _('Turquie')),
+    ('TM', _('Turkménistan')),
+    ('TV', _('Tuvalu')),
+    ('UG', _('Ouganda')),
+    ('UA', _('Ukraine')),
+    ('AE', _('Émirats arabes unis')),
+    ('GB', _('Royaume-Uni')),
+    ('US', _('États-Unis')),
+    ('UY', _('Uruguay')),
+    ('UZ', _('Ouzbékistan')),
+    ('VU', _('Vanuatu')),
+    ('VA', _('Vatican')),
+    ('VE', _('Venezuela')),
+    ('VN', _('Vietnam')),
+    ('YE', _('Yémen')),
+    ('ZM', _('Zambie')),
+    ('ZW', _('Zimbabwe')),
 ]
 
 # Authentication backends
@@ -255,3 +475,62 @@ EMAIL_HOST_USER = 'adval.devteam@gmail.com'
 EMAIL_HOST_PASSWORD = 'oeth fank mhsn lcjr'  # App password for Gmail
 DEFAULT_FROM_EMAIL = 'Adval Services Marketplace <adval.devteam@gmail.com>'
 EMAIL_SUBJECT_PREFIX = '[Adval Services] '
+
+# Chatbot MRE Configuration
+# Azure OpenAI Configuration for Chatbot
+AZURE_OPENAI_ENDPOINT = "https://abido-mbichi00-eastus2.cognitiveservices.azure.com/"
+AZURE_OPENAI_API_KEY = "9JTRqvb4uUTPO0ZyElSlgtgwr8qb9CITEUrs17sf7YaU9yjClPNtJQQJ99BFACHYHv6XJ3w3AAAAACOGwxf8"
+AZURE_OPENAI_API_VERSION = "2025-01-01-preview"
+AZURE_OPENAI_MODEL = "gpt-4o"
+
+# Azure-specific configuration
+if IS_AZURE:
+    # Security settings for Azure
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # Azure logging configuration
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'verbose': {
+                'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+                'style': '{',
+            },
+        },
+        'handlers': {
+            'file': {
+                'level': 'INFO',
+                'class': 'logging.FileHandler',
+                'filename': '/home/site/wwwroot/logs/django.log',
+                'formatter': 'verbose',
+            },
+            'console': {
+                'level': 'INFO',
+                'class': 'logging.StreamHandler',
+                'formatter': 'verbose',
+            },
+        },
+        'loggers': {
+            'django': {
+                'handlers': ['file', 'console'],
+                'level': 'INFO',
+                'propagate': True,
+            },
+        },
+    }
+    
+    # Create logs directory if it doesn't exist
+    logs_dir = '/home/site/wwwroot/logs'
+    if not os.path.exists(logs_dir):
+        try:
+            os.makedirs(logs_dir, exist_ok=True)
+        except:
+            pass  # Ignore permission errors in Azure

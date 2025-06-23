@@ -5,6 +5,11 @@
 {% block meta_description %}Surveillance de la conversation concernant la demande {{ service_request.title }}{% endblock %}
 
 {% block extra_styles %}
+<!-- Include consolidated messaging fixes -->
+<link rel="stylesheet" href="{% static 'css/messaging-fixes.css' %}">
+<!-- Critical fixes - must load last -->
+<link rel="stylesheet" href="{% static 'css/messaging-critical-fixes.css' %}">
+
 <style>
     .chat-container {
         height: 70vh;
@@ -354,8 +359,12 @@
             if (e.key === 'Enter') {
                 e.preventDefault();
                 chatForm.dispatchEvent(new Event('submit'));
-            }
-        });
+            }        });
     });
 </script>
-{% endblock %} 
+
+<!-- Include consolidated messaging fixes JavaScript -->
+<script src="{% static 'js/messaging-fixes.js' %}"></script>
+<!-- Include messaging layout fix to prevent vertical text stacking -->
+<script src="{% static 'js/messaging-layout-fix.js' %}"></script>
+{% endblock %}

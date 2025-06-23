@@ -10,23 +10,57 @@ from django.contrib import messages
 import json
 import os
 import mimetypes
+import logging
 
 from accounts.models import Utilisateur, Client, Expert
 from services.models import Service, ServiceCategory
-from .models import ServiceRequest, RendezVous, Document, Message, Notification
+from .models import ServiceRequest, RendezVous, Document, Message, Notification, ContactMessage
+from services.email_notifications import EmailNotificationService
+from django.core.mail import send_mail
+from django.conf import settings
 
 # Client request management views
 @login_required
 def client_requests_view(request):
-    """Display client's service requests"""
+    """Display client's service requests with filtering"""
     try:
-        # We need to check if the user is a client
+        # Vérifier si l'utilisateur est un client
         client = Client.objects.get(user=request.user)
-        # Use the user object for filtering, not the client object
-        requests = ServiceRequest.objects.filter(client=request.user).order_by('-created_at')
+        
+        # Récupérer les paramètres de filtre
+        status_filter = request.GET.get('status', '')
+        priority_filter = request.GET.get('priority', '')
+        search_query = request.GET.get('search', '')
+        
+        # Filtrer les demandes du client
+        requests = ServiceRequest.objects.filter(client=request.user)
+        
+        # Appliquer les filtres
+        if status_filter:
+            requests = requests.filter(status=status_filter)
+            
+        if priority_filter:
+            requests = requests.filter(priority=priority_filter)
+            
+        if search_query:
+            requests = requests.filter(
+                Q(title__icontains=search_query) |
+                Q(description__icontains=search_query) |
+                Q(service__title__icontains=search_query)
+            )
+        
+        # Trier par date de création (les plus récentes en premier)
+        requests = requests.order_by('-created_at')
+        
+        # Obtenir les services disponibles pour le menu déroulant
+        available_services = Service.objects.filter(is_active=True)
         
         context = {
             'requests': requests,
+            'available_services': available_services,
+            'current_status': status_filter,
+            'current_priority': priority_filter,
+            'current_search': search_query,
         }
         
         return render(request, 'client/demandes.html', context)
@@ -164,8 +198,7 @@ def create_request_by_type_view(request, service_type):
 def request_detail_view(request, request_id):
     """Display details of a specific request"""
     demande = get_object_or_404(ServiceRequest, id=request_id)
-    
-    # Check if user has permission to view this request
+      # Check if user has permission to view this request
     if request.user.account_type == 'client':
         try:
             client = Client.objects.get(user=request.user)
@@ -176,7 +209,7 @@ def request_detail_view(request, request_id):
     elif request.user.account_type == 'expert':
         try:
             expert = Expert.objects.get(user=request.user)
-            if demande.assigned_expert != expert:
+            if demande.expert != expert:
                 return redirect('home')
         except Expert.DoesNotExist:
             return redirect('home')
@@ -191,11 +224,10 @@ def request_detail_view(request, request_id):
     # Handle new message submission
     if request.method == 'POST':
         content = request.POST.get('message')
-        if content:
-            # Create a new message
+        if content:            # Create a new message
             if request.user.account_type == 'client':
                 # From client to expert or admin
-                recipient = demande.assigned_expert.user if demande.assigned_expert else Utilisateur.objects.filter(account_type='admin').first()
+                recipient = demande.expert.user if demande.expert else Utilisateur.objects.filter(account_type='admin').first()
             else:
                 # From expert/admin to client
                 recipient = demande.client.user
@@ -277,7 +309,7 @@ def cancel_request_view(request, request_id):
     """Cancel a request"""
     try:
         client = Client.objects.get(user=request.user)
-        demande = get_object_or_404(ServiceRequest, id=request_id, client=client)
+        demande = get_object_or_404(ServiceRequest, id=request_id, client=request.user)
         
         # Only allow cancellation if request is not already completed or cancelled
         if demande.status in ['completed', 'cancelled']:
@@ -292,16 +324,17 @@ def cancel_request_view(request, request_id):
             demande.save()
             
             # Notify assigned expert if any
-            if demande.assigned_expert:
+            if demande.expert:
                 Notification.objects.create(
-                    user=demande.assigned_expert.user,
+                    user=demande.expert.user,
                     type='request_update',
                     title=_('Request Cancelled'),
                     content=_(f'Request "{demande.title}" has been cancelled by {client.user.name} {client.user.first_name}. Reason: {reason}'),
                     related_service_request=demande
                 )
             
-            return redirect('custom_requests:client_demandes')
+            messages.success(request, _('Request has been cancelled successfully.'))
+            return redirect('custom_requests:client_requests')
             
         context = {
             'demande': demande,
@@ -317,14 +350,12 @@ def cancel_request_view(request, request_id):
 def client_appointments_view(request):
     """Display client's appointments"""
     try:
-        client = Client.objects.get(user=request.user)
-        
         # Get filters
         status = request.GET.get('status', '')
         search = request.GET.get('search', '')
         date = request.GET.get('date', '')
         
-        # Start with all appointments for this client - use request.user, not client object
+        # Start with all appointments for this client
         appointments = RendezVous.objects.filter(client=request.user)
         
         # Apply filters
@@ -341,13 +372,17 @@ def client_appointments_view(request):
                 pass  # Invalid date format
         
         if search:
-            # Search in expert names, service names, and notes
-            appointments = appointments.filter(
-                Q(expert__user__name__icontains=search) |
-                Q(expert__user__first_name__icontains=search) |
-                Q(service__title__icontains=search) |
-                Q(notes__icontains=search)
-            )
+            # Search in service titles and notes
+            search_query = Q(notes__icontains=search) | Q(service__title__icontains=search)
+            
+            # Search in expert's name fields
+            search_query |= Q(expert__name__icontains=search) | Q(expert__first_name__icontains=search)
+            
+            # Search in client's name fields (though this will always be the current user)
+            search_query |= Q(client__name__icontains=search) | Q(client__first_name__icontains=search)
+            
+            # Apply the search query
+            appointments = appointments.filter(search_query)
         
         # Order by date_time
         appointments = appointments.order_by('date_time')
@@ -422,14 +457,29 @@ def create_appointment_view(request):
                 service_request=demande,
                 status='scheduled'
             )
-            
-            # Create notification for the expert
+              # Create notification for the expert
             Notification.objects.create(
                 user=expert.user,
                 type='appointment',
                 title=_('New Appointment Request'),
                 content=_(f'A new appointment has been scheduled by {request.user.name} {request.user.first_name} for {date_time.strftime("%Y-%m-%d %H:%M")}.'),
                 related_rendez_vous=appointment
+            )
+            
+            # Send email notification to expert about new appointment
+            EmailNotificationService.send_appointment_notification(
+                client=request.user,
+                expert=expert.user,
+                appointment=appointment,
+                notification_type='expert_assigned'
+            )
+            
+            # Send email notification to client confirming appointment creation
+            EmailNotificationService.send_appointment_notification(
+                client=request.user,
+                expert=expert.user,
+                appointment=appointment,
+                notification_type='created'
             )
             
             messages.success(request, _('Appointment successfully scheduled.'))
@@ -480,73 +530,93 @@ def appointment_detail_view(request, appointment_id):
 @login_required
 def cancel_appointment_view(request, appointment_id):
     """Cancel a specific appointment"""
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"Tentative d'annulation du rendez-vous {appointment_id}")
+    
+    if request.method != 'POST':
+        logger.error("Méthode non autorisée")
+        messages.error(request, _('Méthode non autorisée.'))
+        return redirect('custom_requests:client_appointments')
+        
     appointment = get_object_or_404(RendezVous, id=appointment_id)
+    logger.info(f"Statut actuel du rendez-vous: {appointment.status}")
     
     # Check if user has permission to cancel this appointment
-    if request.user.account_type == 'client':
-        try:
-            client = Client.objects.get(user=request.user)
-            if appointment.client != request.user:
-                messages.error(request, _('You do not have permission to cancel this appointment.'))
-                return redirect('custom_requests:client_appointments')
-        except Client.DoesNotExist:
-            messages.error(request, _('You do not have permission to cancel this appointment.'))
+    if request.user.account_type.lower() == 'client':
+        # Clients can only cancel their own appointments
+        if appointment.client != request.user:
+            logger.error("Client non autorisé à annuler ce rendez-vous")
+            messages.error(request, _('Vous n\'êtes pas autorisé à annuler ce rendez-vous.'))
             return redirect('custom_requests:client_appointments')
-    elif request.user.account_type == 'expert':
-        try:
-            expert = Expert.objects.get(user=request.user)
-            if appointment.expert != expert.user:
-                messages.error(request, _('You do not have permission to cancel this appointment.'))
-                return redirect('expert_appointments')
-        except Expert.DoesNotExist:
-            messages.error(request, _('You do not have permission to cancel this appointment.'))
-            return redirect('expert_appointments')
-    elif request.user.account_type != 'admin':
-        messages.error(request, _('You do not have permission to cancel this appointment.'))
-        return redirect('home')
+    elif request.user.account_type.lower() == 'admin':
+        # Admins can cancel any appointment
+        pass
+    else:
+        logger.error("Utilisateur non autorisé")
+        messages.error(request, _('Vous n\'êtes pas autorisé à annuler ce rendez-vous.'))
+        return redirect('custom_requests:client_appointments')
     
     # Check if the appointment can be cancelled
     if appointment.status not in ['scheduled', 'confirmed']:
-        messages.error(request, _('This appointment cannot be cancelled.'))
-        if request.user.account_type == 'client':
-            return redirect('custom_requests:client_appointments')
-        elif request.user.account_type == 'expert':
-            return redirect('expert_appointments')
+        logger.error(f"Statut actuel non autorisé pour l'annulation: {appointment.status}")
+        messages.error(request, _('Ce rendez-vous ne peut pas être annulé dans son état actuel.'))
+        return redirect('custom_requests:client_appointments')
+    
+    # Get the cancellation reason
+    cancel_reason = request.POST.get('cancel_reason', '')
+    if not cancel_reason:
+        logger.error("Raison d'annulation manquante")
+        messages.error(request, _('Veuillez fournir une raison pour l\'annulation.'))
+        return redirect('custom_requests:client_appointments')
+    
+    try:
+        # Cancel the appointment
+        logger.info("Mise à jour du statut en 'cancelled'")
+        appointment.status = 'cancelled'
+        
+        # Set appropriate notes based on who cancelled
+        if request.user.account_type.lower() == 'admin':
+            appointment.notes = f"Annulé par l'administrateur. Raison : {cancel_reason}"
+            cancelled_by = "l'administrateur"
         else:
-            return redirect('admin_appointments')
-    
-    # Cancel the appointment
-    appointment.status = 'cancelled'
-    appointment.save()
-    
-    # Create notification for the other party
-    if request.user.account_type == 'client':
-        # Notify the expert
+            appointment.notes = f"Annulé par le client. Raison : {cancel_reason}"
+            cancelled_by = "le client"
+            
+        appointment.save()
+        logger.info("Statut mis à jour avec succès")
+        
+        # Create notification for the client (if cancelled by admin)
+        if request.user.account_type.lower() == 'admin':
+            Notification.objects.create(
+                user=appointment.client,
+                type='appointment_update',
+                title=_('Rendez-vous annulé'),
+                content=_(f'Votre rendez-vous du {appointment.date_time.strftime("%d/%m/%Y à %H:%M")} a été annulé par l\'administrateur. Raison : {cancel_reason}'),
+                related_rendez_vous=appointment
+            )
+        
+        # Create notification for the expert
         Notification.objects.create(
             user=appointment.expert,
             type='appointment_update',
-            title=_('Appointment Cancelled'),
-            content=_(f'Appointment on {appointment.date_time.strftime("%Y-%m-%d %H:%M")} was cancelled by the client.'),
+            title=_('Rendez-vous annulé'),
+            content=_(f'Le rendez-vous du {appointment.date_time.strftime("%d/%m/%Y à %H:%M")} avec {appointment.client.first_name} {appointment.client.name} a été annulé par {cancelled_by}. Raison : {cancel_reason}'),
             related_rendez_vous=appointment
         )
-    elif request.user.account_type == 'expert' or request.user.account_type == 'admin':
-        # Notify the client
-        Notification.objects.create(
-            user=appointment.client,
-            type='appointment_update',
-            title=_('Appointment Cancelled'),
-            content=_(f'Appointment on {appointment.date_time.strftime("%Y-%m-%d %H:%M")} was cancelled by the expert.'),
-            related_rendez_vous=appointment
-        )
+        
+        logger.info("Notifications créées avec succès")
+        messages.success(request, _('Le rendez-vous a été annulé avec succès.'))
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de l'annulation: {str(e)}")
+        messages.error(request, _(f'Une erreur est survenue lors de l\'annulation du rendez-vous : {str(e)}'))
     
-    messages.success(request, _('Appointment successfully cancelled.'))
-    
-    if request.user.account_type == 'client':
-        return redirect('custom_requests:client_appointments')
-    elif request.user.account_type == 'expert':
-        return redirect('expert_appointments')
+    # Redirect based on user type
+    if request.user.account_type.lower() == 'admin':
+        return redirect('admin_rendezvous')
     else:
-        return redirect('admin_appointments')
+        return redirect('custom_requests:client_appointments')
 
 # Expert views
 @login_required
@@ -580,9 +650,47 @@ def expert_requests_view(request):
 @login_required
 def expert_appointments_view(request):
     """Display expert's appointments"""
+    if request.user.account_type.lower() != 'expert':
+        messages.error(request, "Vous devez être connecté en tant qu'expert pour accéder à cette page.")
+        return redirect('home')
+        
     try:
         expert = Expert.objects.get(user=request.user)
-        appointments = RendezVous.objects.filter(expert=expert.user).order_by('date_time')
+        
+        # Check if appointment_id is provided in the query parameters
+        appointment_id = request.GET.get('appointment_id')
+        if appointment_id:
+            return redirect('expert_appointment_detail', appointment_id=appointment_id)
+            
+        # Get filters from request
+        status_filter = request.GET.get('status', '')
+        search_query = request.GET.get('search', '')
+        date_filter = request.GET.get('date', '')
+        
+        # Start with all appointments for this expert
+        appointments = RendezVous.objects.filter(expert=expert.user)
+        
+        # Apply status filter
+        if status_filter:
+            appointments = appointments.filter(status=status_filter)
+        
+        # Apply date filter
+        if date_filter:
+            try:
+                from datetime import datetime
+                filter_date = datetime.strptime(date_filter, '%Y-%m-%d').date()
+                appointments = appointments.filter(date_time__date=filter_date)
+            except ValueError:
+                pass
+        
+        # Apply search filter
+        if search_query:
+            search_query = Q(notes__icontains=search_query) | Q(service__title__icontains=search_query)
+            search_query |= Q(client__name__icontains=search_query) | Q(client__first_name__icontains=search_query)
+            appointments = appointments.filter(search_query)
+        
+        # Order by date_time
+        appointments = appointments.order_by('date_time')
         
         # Get all clients to populate the dropdown in the "Add appointment" modal
         clients = Client.objects.filter(user__is_active=True)
@@ -590,20 +698,25 @@ def expert_appointments_view(request):
         context = {
             'appointments': appointments,
             'clients': clients,
+            'current_status': status_filter,
+            'current_search': search_query,
+            'current_date': date_filter,
         }
         
         return render(request, 'expert/rendezvous.html', context)
     
     except Expert.DoesNotExist:
+        messages.error(request, "Profil d'expert non trouvé. Veuillez contacter l'administrateur.")
         return redirect('home')
 
 # Document views
 @login_required
 def documents_view(request):
     """Display user's documents"""
-    # Get document type filter
+    # Get filters from request
     doc_type = request.GET.get('type')
     search = request.GET.get('search')
+    date_filter = request.GET.get('date')
     
     documents_query = Document.objects.all()
     
@@ -658,6 +771,10 @@ def documents_view(request):
             Q(reference_number__icontains=search)
         )
     
+    # Apply date filter
+    if date_filter:
+        documents_query = documents_query.filter(upload_date__date=date_filter)
+    
     # Order by upload date
     documents = documents_query.order_by('-upload_date')
     
@@ -711,19 +828,22 @@ def upload_document_view(request):
                 file_size=file.size // 1024,  # Convert to KB
                 is_official=is_official,
                 reference_number=reference_number
-            )
-            
-            # Create notifications
+            )            # Create notifications
             if demande:
                 if request.user.account_type == 'client':
                     # Notify assigned expert if any
-                    if demande.assigned_expert:
+                    if demande.expert:
                         Notification.objects.create(
-                            user=demande.assigned_expert.user,
+                            user=demande.expert.user,
                             type='document',
                             title=_('New Document Uploaded'),
                             content=_(f'A new document "{document.name}" has been uploaded by {request.user.name} {request.user.first_name} for request "{demande.title}".'),
                             related_service_request=demande
+                        )
+                        
+                        # Send email notification to expert
+                        EmailNotificationService.send_document_uploaded_notification(
+                            request.user, demande.expert.user, document, demande
                         )
                 else:
                     # Notify client
@@ -732,7 +852,11 @@ def upload_document_view(request):
                         type='document',
                         title=_('New Document Uploaded'),
                         content=_(f'A new document "{document.name}" has been uploaded by {request.user.name} {request.user.first_name} for your request "{demande.title}".'),
-                        related_service_request=demande
+                            related_service_request=demande
+                    )
+                      # Send email notification to client
+                    EmailNotificationService.send_document_uploaded_notification(
+                        request.user, demande.client.user, document, demande
                     )
             
             if rendez_vous:
@@ -745,6 +869,11 @@ def upload_document_view(request):
                         content=_(f'A new document "{document.name}" has been uploaded by {request.user.name} {request.user.first_name} for your appointment on {rendez_vous.date_time.strftime("%Y-%m-%d %H:%M")}.'),
                         related_rendez_vous=rendez_vous
                     )
+                    
+                    # Send email notification to expert
+                    EmailNotificationService.send_document_uploaded_notification(
+                        request.user, rendez_vous.expert.user, document, None
+                    )
                 else:
                     # Notify client
                     Notification.objects.create(
@@ -753,6 +882,11 @@ def upload_document_view(request):
                         title=_('New Document Uploaded'),
                         content=_(f'A new document "{document.name}" has been uploaded by {request.user.name} {request.user.first_name} for your appointment on {rendez_vous.date_time.strftime("%Y-%m-%d %H:%M")}.'),
                         related_rendez_vous=rendez_vous
+                    )
+                    
+                    # Send email notification to client
+                    EmailNotificationService.send_document_uploaded_notification(
+                        request.user, rendez_vous.client.user, document, None
                     )
             
             return redirect('custom_requests:documents')
@@ -791,30 +925,45 @@ def upload_document_view(request):
 
 @login_required
 def delete_document_view(request, document_id):
-    """Delete a document"""
-    document = get_object_or_404(Document, id=document_id)
-    
-    # Check permission to delete
-    if request.user.account_type == 'client':
-        # Clients can only delete their own documents
-        if document.uploaded_by != request.user and (
-            not document.service_request or document.service_request.client != request.user):
-            messages.error(request, _('You do not have permission to delete this document.'))
+    """
+    Delete a document
+    """
+    try:
+        # Récupérer le document ou renvoyer 404 si non trouvé
+        document = Document.objects.get(id=document_id)
+        
+        # Vérifier les permissions
+        has_permission = False
+        
+        # Vérifier si l'utilisateur est admin
+        if request.user.account_type == 'admin':
+            has_permission = True
+        # Vérifier si l'utilisateur est le propriétaire du document
+        elif document.uploaded_by == request.user:
+            has_permission = True
+        # Vérifier si l'utilisateur est le client ou l'expert associé à la demande
+        elif document.service_request:
+            if request.user.account_type == 'client' and document.service_request.client == request.user:
+                has_permission = True
+            elif request.user.account_type == 'expert' and document.service_request.expert == request.user:
+                has_permission = True
+        
+        if not has_permission:
+            messages.error(request, _("Vous n'avez pas la permission de supprimer ce document."))
             return redirect('custom_requests:documents')
-    elif request.user.account_type == 'expert':
-        # Experts can only delete their own documents
-        if document.uploaded_by != request.user and (
-            not document.service_request or document.service_request.expert != request.user):
-            messages.error(request, _('You do not have permission to delete this document.'))
-            return redirect('custom_requests:documents')
-    elif request.user.account_type != 'admin':
-        messages.error(request, _('You do not have permission to delete this document.'))
-        return redirect('custom_requests:documents')
+        
+        # Supprimer le document
+        document.delete()
+        messages.success(request, _("Le document a été supprimé avec succès."))
+        
+    except Document.DoesNotExist:
+        messages.error(request, _("Le document que vous essayez de supprimer n'existe pas ou a déjà été supprimé."))
+    except Exception as e:
+        messages.error(request, _("Une erreur s'est produite lors de la suppression du document."))
+        # En environnement de développement, vous pouvez logger l'erreur
+        logger = logging.getLogger(__name__)
+        logger.error(f"Erreur lors de la suppression du document {document_id}: {str(e)}")
     
-    # Delete the document
-    document.delete()
-    
-    messages.success(request, _('Document successfully deleted.'))
     return redirect('custom_requests:documents')
 
 # Messaging views
@@ -891,8 +1040,7 @@ def send_message_view(request):
             content=content,
             service_request=demande
         )
-        
-        # Create notification for recipient
+          # Create notification for recipient
         Notification.objects.create(
             user=recipient,
             type='message',
@@ -901,6 +1049,17 @@ def send_message_view(request):
             related_message=message,
             related_service_request=demande
         )
+        
+        # Send email notification
+        try:
+            EmailNotificationService.send_new_message_notification(
+                sender=request.user,
+                recipient=recipient,
+                message_content=content
+            )
+        except Exception as email_error:
+            print(f"Failed to send email notification: {email_error}")
+            # Continue without failing the request
         
         return redirect('custom_requests:messages')
     
@@ -990,34 +1149,61 @@ def notifications_view(request):
 @login_required
 def mark_notification_read_view(request, notification_id):
     """Mark a notification as read"""
-    notification = get_object_or_404(Notification, id=notification_id, user=request.user)
-    notification.is_read = True
-    notification.save()
-    
-    # Retrieve redirect URL if provided
-    redirect_url = request.GET.get('redirect_url')
-    
-    # Redirect to related content if available
-    if notification.related_service_request:
-        return redirect('custom_requests:request_detail', request_id=notification.related_service_request.id)
-    elif notification.related_rendez_vous:
-        return redirect('custom_requests:appointment_detail', appointment_id=notification.related_rendez_vous.id)
-    elif notification.related_message:
-        # Redirect to appropriate messages page based on user account type
-        sender_id = notification.related_message.sender.id
+    try:
+        notification = Notification.objects.get(id=notification_id, user=request.user)
+        notification.is_read = True
+        notification.save()
         
-        # Check user account type and redirect accordingly
-        if request.user.account_type == 'client':
-            return redirect(f'/client/messages/?contact={sender_id}')
-        elif request.user.account_type == 'expert':
-            return redirect(f'/expert/messages/?client={sender_id}')
-        elif request.user.account_type == 'admin':
-            return redirect(f'/admin/messages/?user={sender_id}')
-    elif redirect_url:
-        # Use the provided redirect URL if none of the above conditions are met
-        return redirect(redirect_url)
-    else:
-        return redirect('custom_requests:notifications')
+        # Retrieve redirect URL if provided
+        redirect_url = request.GET.get('redirect_url')
+          # Redirect to related content if available
+        if notification.related_service_request:
+            return redirect('custom_requests:request_detail', request_id=notification.related_service_request.id)
+        elif notification.related_rendez_vous:
+            # Redirect to appropriate appointment detail page based on user type
+            if request.user.account_type == 'client':
+                return redirect('custom_requests:appointment_detail', appointment_id=notification.related_rendez_vous.id)
+            elif request.user.account_type == 'expert':
+                return redirect('expert_appointment_detail', appointment_id=notification.related_rendez_vous.id)
+            else:
+                return redirect('custom_requests:appointment_detail', appointment_id=notification.related_rendez_vous.id)
+        elif notification.related_message:
+            # Redirect to appropriate messages page based on user account type
+            sender_id = notification.related_message.sender.id
+            if request.user.account_type == 'client':
+                return redirect(f'/client/messages/?contact={sender_id}')
+            elif request.user.account_type == 'expert':
+                return redirect(f'/expert/messages/?client={sender_id}')
+            elif request.user.account_type == 'admin':
+                return redirect(f'/admin/messages/?user={sender_id}')
+        elif redirect_url:
+            # Use the provided redirect URL if none of the above conditions are met
+            return redirect(redirect_url)
+        else:
+            return redirect('custom_requests:notifications')
+            
+    except Notification.DoesNotExist:
+        messages.error(request, _("Notification introuvable."))
+        return redirect('client_dashboard')
+
+@require_POST
+def mark_all_notifications_read(request):
+    """Mark all unread notifications as read"""
+    if not request.user.is_authenticated:
+        return JsonResponse({'success': False, 'error': 'Non authentifié'}, status=401)
+    
+    try:
+        # Marquer toutes les notifications non lues comme lues
+        updated = Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'{updated} notifications marquées comme lues',
+            'updated_count': updated
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 # AJAX view for client request creation
 @login_required
@@ -1171,14 +1357,13 @@ def api_client_requests(request):
                     'id': demande.service.id,
                     'title': demande.service.title,
                     'category': demande.service.category
-                },
-                'status': demande.status,
+                },                'status': demande.status,
                 'priority': demande.priority,
                 'created_at': demande.created_at.isoformat(),
                 'expert': {
-                    'id': demande.assigned_expert.id,
-                    'name': f"{demande.assigned_expert.user.name} {demande.assigned_expert.user.first_name}",
-                } if demande.assigned_expert else None
+                    'id': demande.expert.id,
+                    'name': f"{demande.expert.user.name} {demande.expert.user.first_name}",
+                } if demande.expert else None
             })
         
         return JsonResponse({
@@ -1202,14 +1387,13 @@ def api_request_detail(request, request_id):
         # Check permission
         if request.user.account_type == 'client':
             client = Client.objects.get(user=request.user)
-            if demande.client != client:
-                return JsonResponse({
+            if demande.client != client:                return JsonResponse({
                     'success': False,
                     'message': _('You do not have permission to view this request.')
                 }, status=403)
         elif request.user.account_type == 'expert':
             expert = Expert.objects.get(user=request.user)
-            if demande.assigned_expert != expert:
+            if demande.expert != expert:
                 return JsonResponse({
                     'success': False,
                     'message': _('You do not have permission to view this request.')
@@ -1277,11 +1461,10 @@ def api_request_detail(request, request_id):
             },
             'status': demande.status,
             'priority': demande.priority,
-            'created_at': demande.created_at.isoformat(),
-            'expert': {
-                'id': demande.assigned_expert.id,
-                'name': f"{demande.assigned_expert.user.name} {demande.assigned_expert.user.first_name}",
-            } if demande.assigned_expert else None,
+            'created_at': demande.created_at.isoformat(),            'expert': {
+                'id': demande.expert.id,
+                'name': f"{demande.expert.user.name} {demande.expert.user.first_name}",
+            } if demande.expert else None,
             'documents': documents,
             'messages': messages_data,
             'appointments': appointments
@@ -1467,14 +1650,13 @@ def api_upload_document(request):
             file_size=file.size // 1024,  # Convert to KB
             is_official=is_official,
             reference_number=reference_number
-        )
-        
+        )        
         # Create appropriate notifications
         if demande:
             if request.user.account_type == 'client':
-                if demande.assigned_expert:
+                if demande.expert:
                     Notification.objects.create(
-                        user=demande.assigned_expert.user,
+                        user=demande.expert.user,
                         type='document',
                         title=_('New Document Uploaded'),
                         content=_(f'A new document "{document.name}" has been uploaded by {request.user.name} {request.user.first_name} for request "{demande.title}".'),
@@ -1496,7 +1678,7 @@ def api_upload_document(request):
                     type='document',
                     title=_('New Document Uploaded'),
                     content=_(f'A new document "{document.name}" has been uploaded by {request.user.name} {request.user.first_name} for your appointment on {rendez_vous.date_time.strftime("%Y-%m-%d %H:%M")}.'),
-                    related_rendez_vous=rendez_vous
+                        related_rendez_vous=rendez_vous
                 )
             else:
                 Notification.objects.create(
@@ -1504,7 +1686,7 @@ def api_upload_document(request):
                     type='document',
                     title=_('New Document Uploaded'),
                     content=_(f'A new document "{document.name}" has been uploaded by {request.user.name} {request.user.first_name} for your appointment on {rendez_vous.date_time.strftime("%Y-%m-%d %H:%M")}.'),
-                    related_rendez_vous=rendez_vous
+                        related_rendez_vous=rendez_vous
                 )
         
         return JsonResponse({
@@ -1544,10 +1726,12 @@ def api_messages(request):
                     is_read=True,
                     read_at=timezone.now()
                 )
-                
-                # Prepare response data
+                  # Prepare response data with content safety
                 messages_data = []
                 for message in messages_query:
+                    # Sanitize and limit content length for safety
+                    safe_content = str(message.content)[:2000] if message.content else ""
+                    
                     messages_data.append({
                         'id': message.id,
                         'sender': {
@@ -1555,7 +1739,7 @@ def api_messages(request):
                             'name': f"{message.sender.name} {message.sender.first_name}",
                             'account_type': message.sender.account_type
                         },
-                        'content': message.content,
+                        'content': safe_content,
                         'sent_at': message.sent_at.isoformat(),
                         'is_read': message.is_read,
                         'is_mine': message.sender == request.user
@@ -1576,11 +1760,10 @@ def api_messages(request):
                     'success': False,
                     'message': _('User not found.')
                 }, status=404)
-        
-        # Otherwise, return conversation summary
+          # Otherwise, return conversation summary with content safety
         messages = Message.objects.filter(
             Q(sender=request.user) | Q(recipient=request.user)
-        ).order_by('-sent_at')
+        ).order_by('-sent_at')[:100]  # Limit to last 100 messages for performance
         
         # Group messages by conversation
         conversations = {}
@@ -1591,6 +1774,9 @@ def api_messages(request):
             # Create a unique key for this conversation
             conversation_key = f"{min(request.user.id, other_party.id)}_{max(request.user.id, other_party.id)}"
             
+            # Sanitize content for safety
+            safe_content = str(message.content)[:200] if message.content else ""
+            
             if conversation_key not in conversations:
                 conversations[conversation_key] = {
                     'user': {
@@ -1600,7 +1786,7 @@ def api_messages(request):
                     },
                     'latest_message': {
                         'id': message.id,
-                        'content': message.content,
+                        'content': safe_content,
                         'sent_at': message.sent_at.isoformat(),
                         'is_read': message.is_read,
                         'is_mine': message.sender == request.user
@@ -1612,7 +1798,7 @@ def api_messages(request):
                 if message.sent_at > timezone.datetime.fromisoformat(conversations[conversation_key]['latest_message']['sent_at']):
                     conversations[conversation_key]['latest_message'] = {
                         'id': message.id,
-                        'content': message.content,
+                        'content': safe_content,
                         'sent_at': message.sent_at.isoformat(),
                         'is_read': message.is_read,
                         'is_mine': message.sender == request.user
@@ -1621,8 +1807,7 @@ def api_messages(request):
                 # Update unread count
                 if message.recipient == request.user and not message.is_read:
                     conversations[conversation_key]['unread_count'] += 1
-        
-        # Convert dictionary to list and sort by latest message date
+          # Convert dictionary to list and sort by latest message date
         conversations_list = sorted(
             conversations.values(),
             key=lambda x: x['latest_message']['sent_at'],
@@ -1635,13 +1820,29 @@ def api_messages(request):
         })
     
     elif request.method == 'POST':
-        # Send a new message
+        # Send a new message with content validation
         data = json.loads(request.body)
         recipient_id = data.get('recipient_id')
         content = data.get('content')
         demande_id = data.get('demande_id')
         
         if not content or not recipient_id:
+            return JsonResponse({
+                'success': False,
+                'message': _('Recipient and content are required.')
+            }, status=400)
+        
+        # Validate content length for safety
+        if len(str(content)) > 2000:
+            return JsonResponse({
+                'success': False,
+                'message': _('Message content is too long. Maximum 2000 characters allowed.')
+            }, status=400)
+        
+        # Sanitize content
+        content = str(content).strip()
+        
+        if not content:
             return JsonResponse({
                 'success': False,
                 'message': _('Recipient and content are required.')
@@ -1732,5 +1933,160 @@ def api_notifications(request):
     return JsonResponse({
         'success': True,
         'notifications': notifications_data,
-        'unread_count': Notification.objects.filter(user=request.user, is_read=False).count()
-    })
+        'unread_count': Notification.objects.filter(user=request.user, is_read=False).count()    })
+
+@login_required
+def expert_create_appointment_view(request):
+    """Handle expert appointment creation from the expert rendezvous page"""
+    if request.method == 'POST':
+        try:
+            # Get form data
+            title = request.POST.get('title')
+            client_id = request.POST.get('client')
+            start_time = request.POST.get('start_time')
+            end_time = request.POST.get('end_time')
+            appointment_type = request.POST.get('type')
+            description = request.POST.get('description', '')
+            
+            # Validate required fields
+            if not all([title, client_id, start_time, end_time, appointment_type]):
+                messages.error(request, 'Tous les champs obligatoires doivent être remplis.')
+                return redirect('expert_rendezvous')
+              # Get client and expert
+            try:
+                client = Client.objects.get(id=client_id)
+                client_user = client.user
+                expert = request.user
+            except Client.DoesNotExist:
+                messages.error(request, 'Client non trouvé.')
+                return redirect('expert_rendezvous')
+              # Parse datetime
+            try:
+                start_datetime = timezone.datetime.fromisoformat(start_time.replace('T', ' '))
+                end_datetime = timezone.datetime.fromisoformat(end_time.replace('T', ' '))
+                
+                # Make timezone aware
+                if timezone.is_naive(start_datetime):
+                    start_datetime = timezone.make_aware(start_datetime)
+                if timezone.is_naive(end_datetime):
+                    end_datetime = timezone.make_aware(end_datetime)
+                    
+                # Calculate duration in minutes
+                duration = int((end_datetime - start_datetime).total_seconds() / 60)
+            except ValueError:
+                messages.error(request, 'Format de date/heure invalide.')
+                return redirect('expert_rendezvous')
+            
+            # Combine title and description for notes
+            notes = f"{title}"
+            if description:
+                notes += f"\n{description}"
+              # Create appointment
+            appointment = RendezVous.objects.create(
+                client=client_user,
+                expert=expert,
+                date_time=start_datetime,
+                duration=duration,
+                consultation_type=appointment_type,
+                notes=notes,
+                status='scheduled'
+            )
+              # Send notification to client
+            try:
+                from django.core.mail import send_mail
+                from django.conf import settings
+                subject = f'Nouveau rendez-vous programmé: {title}'
+                message = f'Un nouveau rendez-vous a été programmé pour le {start_datetime.strftime("%d/%m/%Y à %H:%M")}.'
+                send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [client_user.email])
+            except Exception as e:
+                pass  # Continue even if email fails
+            
+            # Send email notification to client about new appointment
+            EmailNotificationService.send_appointment_notification(
+                client=client_user,
+                expert=expert,
+                appointment=appointment,
+                notification_type='created'
+            )
+            
+            messages.success(request, 'Rendez-vous créé avec succès!')
+            return redirect('expert_rendezvous')
+            
+        except Exception as e:
+            messages.error(request, f'Erreur lors de la création du rendez-vous: {str(e)}')
+            return redirect('expert_rendezvous')
+    
+    return redirect('expert_rendezvous')
+
+def contact_view(request):
+    """Handle contact form submission"""
+    if request.method == 'POST':
+        try:
+            # Récupérer les données du formulaire
+            name = request.POST.get('name', '').strip()
+            email = request.POST.get('email', '').strip()
+            subject = request.POST.get('subject', '').strip()
+            message = request.POST.get('message', '').strip()
+            
+            # Validation basique
+            if not all([name, email, subject, message]):
+                messages.error(request, 'Tous les champs sont requis.')
+                return render(request, 'general/contact.html')
+            
+            # Sauvegarder le message dans la base de données
+            contact_message = ContactMessage.objects.create(
+                name=name,
+                email=email,
+                subject=subject,
+                message=message
+            )
+            
+            # Récupérer l'email de l'expert principal (ou administrateur)
+            expert_emails = []
+            experts = Utilisateur.objects.filter(account_type='expert', is_active=True)
+            
+            if experts.exists():
+                expert_emails = [expert.email for expert in experts]
+            else:
+                # Si aucun expert, utiliser l'email admin par défaut
+                expert_emails = [settings.DEFAULT_FROM_EMAIL]
+            
+            # Préparer le contenu de l'email
+            email_subject = f"Nouveau message de contact: {subject}"
+            email_message = f"""
+Nouveau message de contact reçu sur ServicesBladi:
+
+Nom: {name}
+Email: {email}
+Sujet: {subject}
+
+Message:
+{message}
+
+---
+Envoyé le: {contact_message.created_at.strftime('%d/%m/%Y à %H:%M')}
+ID du message: {contact_message.id}
+            """
+            
+            # Envoyer l'email aux experts
+            try:
+                send_mail(
+                    subject=email_subject,
+                    message=email_message,
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=expert_emails,
+                    fail_silently=False,
+                )
+                
+                messages.success(request, 'Votre message a été envoyé avec succès! Nous vous répondrons dans les plus brefs délais.')
+                
+            except Exception as e:
+                # Même si l'email échoue, le message est sauvegardé
+                messages.success(request, 'Votre message a été enregistré. Nous vous répondrons dans les plus brefs délais.')
+                print(f"Erreur d'envoi d'email: {e}")
+                
+        except Exception as e:
+            messages.error(request, 'Une erreur est survenue lors de l\'envoi de votre message. Veuillez réessayer.')
+            print(f"Erreur de traitement du formulaire de contact: {e}")
+    
+    return render(request, 'general/contact.html')

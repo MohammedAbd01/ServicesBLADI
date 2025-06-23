@@ -421,48 +421,96 @@
       font-size: 2rem;
       color: #ddd;
       margin-bottom: 10px;
-    }
-
-    /* Responsive Styles */
-    @media (max-width: 992px) {
-      .sidebar {
-        width: 60px;
-        padding: 1rem;
-      }
-
-      .sidebar-profile, .sidebar-menu a span {
-        display: none;
-      }
-
-      .main-content {
-        margin-left: 60px;
-      }
-      
-      .notification-dropdown {
-        left: 65px;
-      }
-    }
-
+    }    /* Responsive Styles */
     @media (max-width: 768px) {
       .dashboard-container {
-        flex-direction: column;
+        display: block;
       }
-
+      
       .sidebar {
-        width: 100%;
-        height: auto;
-        position: relative;
+        transform: translateX(-100%);
+        position: fixed;
+        z-index: 1040;
+        height: 100vh;
+        overflow-y: auto;
+        transition: transform 0.3s ease;
       }
-
+      
+      .sidebar.show {
+        transform: translateX(0);
+        box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+      }
+      
       .main-content {
-        margin-left: 0;
+        margin-left: 0 !important;
+        width: 100%;
+        padding: 1rem;
+      }
+      
+      .mobile-menu-toggle {
+        display: block !important;
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 1050;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+      
+      .mobile-menu-toggle:hover {
+        background: var(--secondary-color);
+        transform: scale(1.1);
       }
       
       .notification-dropdown {
-        left: auto;
-        right: 10px;
-        top: 60px;
-        width: 90%;
+        position: fixed !important;
+        top: 80px !important;
+        right: 10px !important;
+        left: 10px !important;
+        width: auto !important;
+        max-height: 70vh;
+        overflow-y: auto;
+      }
+      
+      .dashboard-card {
+        margin-bottom: 15px;
+      }
+      
+      .table-responsive {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+    
+    @media (min-width: 769px) {
+      .mobile-menu-toggle {
+        display: none !important;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .main-content {
+        padding: 0.75rem;
+      }
+      
+      .dashboard-card .card-body {
+        padding: 1rem;
+      }
+      
+      .notification-dropdown {
+        max-height: 60vh;
       }
     }
   </style>
@@ -472,12 +520,16 @@
 
 <body>
   <div class="dashboard-container">
+    <!-- Mobile Menu Toggle Button -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+      <i class="bi bi-list"></i>
+    </button>
+    
     <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="sidebar-profile">
+    <aside class="sidebar" id="sidebar"><div class="sidebar-profile">
         <img src="{{ user.get_profile_picture_url }}" alt="Expert Profile" class="profile-image">
-        <h5 id="expertName">{{ user.name }} {{ user.first_name }}</h5>
-        <p class="text-muted">Expert {{ expert.specialty }}</p>
+        <h5 id="expertName" class="text-white">{{ user.name }} {{ user.first_name }}</h5>
+        <p class="text-white">Expert {{ expert.specialty }}</p>
       </div>
       <nav class="sidebar-menu">
         <a href="{% url 'expert_dashboard' %}" class="text-white text-decoration-none {% if request.resolver_match.url_name == 'expert_dashboard' %}active{% endif %}">
@@ -510,11 +562,13 @@
         <a href="{% url 'accounts:edit_profile' %}" class="text-white text-decoration-none {% if request.resolver_match.url_name == 'edit_profile' and request.resolver_match.app_name == 'accounts' %}active{% endif %}">
           <i class="bi bi-pencil-square"></i>
           <span>Modifier mon<br>profil</span>
-        </a>
-        <a href="{% url 'accounts:logout' %}" class="text-white text-decoration-none">
-          <i class="bi bi-box-arrow-right"></i>
-          <span>Déconnexion</span>
-        </a>
+        </a>        <form method="post" action="{% url 'accounts:logout' %}" style="display: inline;">
+          {% csrf_token %}
+          <button type="submit" class="text-white text-decoration-none bg-transparent border-0 w-100 text-start d-flex align-items-center" style="background: none;">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>Déconnexion</span>
+          </button>
+        </form>
       </nav>
     </aside>
 
@@ -531,10 +585,35 @@
   <script src="{% static 'vendor/swiper/swiper-bundle.min.js' %}"></script>
   
   {% block extra_scripts %}{% endblock %}
-  
-  <script>
+    <script>
     // General dashboard scripts
     document.addEventListener('DOMContentLoaded', function() {
+      // Mobile menu toggle functionality
+      const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+      const sidebar = document.getElementById('sidebar');
+      
+      if (mobileMenuToggle && sidebar) {
+        mobileMenuToggle.addEventListener('click', function() {
+          sidebar.classList.toggle('show');
+        });
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(e) {
+          if (window.innerWidth <= 768) {
+            if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+              sidebar.classList.remove('show');
+            }
+          }
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', function() {
+          if (window.innerWidth > 768) {
+            sidebar.classList.remove('show');
+          }
+        });
+      }
+      
       // Initialize any common dashboard functionality here
       
       // Fonction pour toggler le dropdown de notifications

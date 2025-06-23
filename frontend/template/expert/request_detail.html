@@ -131,12 +131,11 @@
       </div>
 
       <!-- Messages -->
-      <div class="dashboard-card mb-4">
-        <div class="card-header">
+      <div class="dashboard-card mb-4">        <div class="card-header">
           <h5 class="mb-0">
             <i class="bi bi-chat-dots me-2"></i>Messages
             {% if service_request.status != 'pending' %}
-              <a href="{% url 'messaging:chat' service_request.id %}" class="btn btn-sm btn-primary float-end">
+              <a href="{% url 'expert_messages' %}?client={{ service_request.client.id }}" class="btn btn-sm btn-primary float-end">
                 <i class="bi bi-chat-text me-1"></i>Ouvrir le chat
               </a>
             {% endif %}
