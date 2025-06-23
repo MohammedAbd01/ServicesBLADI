@@ -1,10 +1,19 @@
 # Azure startup commands for Django
-# Change to backend directory
-cd /home/site/wwwroot/backend
+# Set working directory to wwwroot (where backend files are deployed)
+cd /home/site/wwwroot
+
+# Set up Python path
+export PYTHON_PATH="/opt/python/3.10.17/bin/python"
 
 # Check if MySQL is ready before proceeding
 echo "Waiting for MySQL connection..."
-python -c "import time; import MySQLdb; \
+$PYTHON_PATH -c "import time; \
+try: \
+    import MySQLdb; \
+except ImportError: \
+    import pymysql; \
+    pymysql.install_as_MySQLdb(); \
+    import MySQLdb; \
 count=0; \
 while count < 10: \
     try: \
@@ -17,16 +26,10 @@ while count < 10: \
 " || echo "MySQL connection check failed, but continuing anyway"
 
 # Run migrations with error handling
-python manage.py migrate --noinput || echo "Migration failed but continuing"
-
-# Collect static files with error handling (skip manifest processing)
-python manage.py collectstatic --noinput --no-post-process || echo "Static files collection failed but continuing"
+$PYTHON_PATH manage.py migrate --noinput || echo "Migration failed but continuing"
 
 # Create cache table with error handling
-python manage.py createcachetable --noinput || echo "Cache table creation failed but continuing"
+$PYTHON_PATH manage.py createcachetable --noinput || echo "Cache table creation failed but continuing"
 
-# Collect static files
-python manage.py collectstatic --noinput --clear
-
-# Start Gunicorn from backend directory
-gunicorn servicesbladi.wsgi:application --config gunicorn.conf.py
+# Start Gunicorn (using the virtual environment's gunicorn)
+/home/site/wwwroot/antenv/bin/gunicorn servicesbladi.wsgi:application --config gunicorn.conf.py
