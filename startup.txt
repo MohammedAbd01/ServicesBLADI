@@ -74,22 +74,14 @@ if not ssl_cert_path and use_ssl:
 count = 0
 while count < 10:
     try:
-        if use_ssl and ssl_cert_path:
+        if use_ssl:
+            # Use SSL with minimal validation for Azure MySQL compatibility
             MySQLdb.connect(
                 host=db_host,
                 user=db_user,
                 passwd=db_password,
                 db=db_name,
-                ssl={'ca': ssl_cert_path}
-            )
-        elif use_ssl:
-            # Try SSL without certificate validation
-            MySQLdb.connect(
-                host=db_host,
-                user=db_user,
-                passwd=db_password,
-                db=db_name,
-                ssl={}
+                ssl={'check_hostname': False}
             )
         else:
             MySQLdb.connect(

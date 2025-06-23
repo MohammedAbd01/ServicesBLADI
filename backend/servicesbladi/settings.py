@@ -120,11 +120,11 @@ if IS_AZURE:
     for path in ca_cert_paths:
         if os.path.exists(path):
             ca_cert_path = path
-            break
-    
+            break    
     ssl_options = {}
-    if os.environ.get('AZURE_MYSQL_SSL', 'true').lower() == 'true' and ca_cert_path:
-        ssl_options = {'ca': ca_cert_path}
+    if os.environ.get('AZURE_MYSQL_SSL', 'true').lower() == 'true':
+        # Use SSL but don't verify certificates for Azure MySQL compatibility
+        ssl_options = {'check_hostname': False}
     
     DATABASES = {
         'default': {
