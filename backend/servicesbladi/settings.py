@@ -109,6 +109,23 @@ WSGI_APPLICATION = 'servicesbladi.wsgi.application'
 
 if IS_AZURE:
     # Azure MySQL database configuration
+    # Find the CA certificate file path
+    ca_cert_paths = [
+        '/home/site/wwwroot/BaltimoreCyberTrustRoot.crt.pem',
+        os.path.join(BASE_DIR, 'BaltimoreCyberTrustRoot.crt.pem'),
+        'BaltimoreCyberTrustRoot.crt.pem'
+    ]
+    
+    ca_cert_path = None
+    for path in ca_cert_paths:
+        if os.path.exists(path):
+            ca_cert_path = path
+            break
+    
+    ssl_options = {}
+    if os.environ.get('AZURE_MYSQL_SSL', 'true').lower() == 'true' and ca_cert_path:
+        ssl_options = {'ca': ca_cert_path}
+    
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
@@ -120,7 +137,7 @@ if IS_AZURE:
             'OPTIONS': {
                 'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
                 'charset': 'utf8mb4',
-                'ssl': {'ca': '/home/site/wwwroot/BaltimoreCyberTrustRoot.crt.pem'} if os.environ.get('AZURE_MYSQL_SSL', 'true').lower() == 'true' else False,
+                'ssl': ssl_options,
             },
         }
     }

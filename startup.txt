@@ -20,6 +20,20 @@ fi
 # Set working directory to the app path
 cd $APP_PATH
 
+# Check for SSL certificate file
+SSL_CERT_PATH=""
+if [ -f "/home/site/wwwroot/BaltimoreCyberTrustRoot.crt.pem" ]; then
+    SSL_CERT_PATH="/home/site/wwwroot/BaltimoreCyberTrustRoot.crt.pem"
+    echo "Found SSL certificate at: $SSL_CERT_PATH"
+elif [ -f "$APP_PATH/BaltimoreCyberTrustRoot.crt.pem" ]; then
+    SSL_CERT_PATH="$APP_PATH/BaltimoreCyberTrustRoot.crt.pem"
+    echo "Found SSL certificate at: $SSL_CERT_PATH"
+else
+    echo "SSL certificate not found. Available files:"
+    ls -la /home/site/wwwroot/ || echo "wwwroot not accessible"
+    ls -la $APP_PATH/ || echo "APP_PATH not accessible"
+fi
+
 # Check if MySQL is ready before proceeding
 echo "Waiting for MySQL connection..."
 python -c "
@@ -41,16 +55,41 @@ use_ssl = os.environ.get('AZURE_MYSQL_SSL', 'true').lower() == 'true'
 
 print(f'Connecting to MySQL at {db_host} with user {db_user}, SSL: {use_ssl}')
 
+# Find SSL certificate file
+ssl_cert_paths = [
+    '/home/site/wwwroot/BaltimoreCyberTrustRoot.crt.pem',
+    'BaltimoreCyberTrustRoot.crt.pem'
+]
+
+ssl_cert_path = None
+for path in ssl_cert_paths:
+    if os.path.exists(path):
+        ssl_cert_path = path
+        print(f'Found SSL certificate at: {path}')
+        break
+
+if not ssl_cert_path and use_ssl:
+    print('Warning: SSL enabled but certificate not found, trying without SSL certificate validation')
+
 count = 0
 while count < 10:
     try:
-        if use_ssl:
+        if use_ssl and ssl_cert_path:
             MySQLdb.connect(
                 host=db_host,
                 user=db_user,
                 passwd=db_password,
                 db=db_name,
-                ssl={'ca': '/home/site/wwwroot/BaltimoreCyberTrustRoot.crt.pem'}
+                ssl={'ca': ssl_cert_path}
+            )
+        elif use_ssl:
+            # Try SSL without certificate validation
+            MySQLdb.connect(
+                host=db_host,
+                user=db_user,
+                passwd=db_password,
+                db=db_name,
+                ssl={}
             )
         else:
             MySQLdb.connect(
