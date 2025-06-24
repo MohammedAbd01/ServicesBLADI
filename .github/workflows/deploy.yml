@@ -54,27 +54,8 @@ jobs:
           # Create deployment directory
           mkdir -p deployment
           
-          # Copy backend files (including all Django apps)
+          # Copy backend files (including all Django apps, templates, and static files)
           cp -r backend/* deployment/
-          
-          # Copy frontend directories to deployment
-          if [ -d "frontend" ]; then
-            echo "Copying frontend files..."
-            mkdir -p deployment/frontend/static
-            mkdir -p deployment/frontend/template
-            
-            # Copy static files
-            if [ -d "frontend/static" ]; then
-              cp -r frontend/static/* deployment/frontend/static/
-              echo "Copied frontend static files"
-            fi
-            
-            # Copy template files
-            if [ -d "frontend/template" ]; then
-              cp -r frontend/template/* deployment/frontend/template/
-              echo "Copied frontend template files"
-            fi
-          fi
           
           # Copy SSL certificate to root of deployment
           cp backend/BaltimoreCyberTrustRoot.crt.pem deployment/ || echo "SSL cert not found"

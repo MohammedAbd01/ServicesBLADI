@@ -20,11 +20,10 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import views as auth_views
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.http import JsonResponse
 
-# Import message_views from custom_requests app for direct URL mapping
-from custom_requests.message_views import expert_check_messages
+# Direct imports removed - handled through app URLs
 
 # Add a redirect for the secure admin login
 def admin_login_redirect(request):
@@ -33,6 +32,13 @@ def admin_login_redirect(request):
 # Simple status check
 def status_check(request):
     return JsonResponse({"status": "ok", "message": "Django server is working"})
+
+# Custom error handlers
+def custom_404_view(request, exception):
+    return render(request, '404.html', status=404)
+
+def custom_500_view(request):
+    return render(request, '500.html', status=500)
 
 urlpatterns = [
     path('django-admin/', admin.site.urls),  # Renamed Django admin URL to avoid conflicts
@@ -50,37 +56,11 @@ urlpatterns = [
     path('chatbot/', include('chatbot.urls')),
     
     # Frontend URLs (existing HTML templates integration)
-    path('', include('servicesbladi.frontend_urls')),
-    
-    # Authentication views
-    path('accounts/password_reset/', 
-        auth_views.PasswordResetView.as_view(
-            template_name='accounts/password_reset.html',
-            email_template_name='accounts/password_reset_email.html',
-            subject_template_name='accounts/password_reset_subject.txt',
-        ), 
-        name='password_reset'),
-    path('accounts/password_reset/done/', 
-        auth_views.PasswordResetDoneView.as_view(
-            template_name='accounts/password_reset_done.html'
-        ), 
-        name='password_reset_done'),
-    path('accounts/reset/<uidb64>/<token>/', 
-        auth_views.PasswordResetConfirmView.as_view(
-            template_name='accounts/password_reset_confirm.html'
-        ), 
-        name='password_reset_confirm'),
-    path('accounts/reset/done/', 
-        auth_views.PasswordResetCompleteView.as_view(
-            template_name='accounts/password_reset_complete.html'
-        ), 
-        name='password_reset_complete'),
-    
-    # Language change
+    path('', include('servicesbladi.frontend_urls')),    # Language change
     path('i18n/', include('django.conf.urls.i18n')),
 
-    # Add direct URL mapping for expert_check_messages
-    path('expert/messages/check/', expert_check_messages, name='expert_messages_check'),
+    # Direct URL mappings removed - handled through app URLs
+    # path('expert/messages/check/', expert_check_messages, name='expert_messages_check'),
 ]
 
 # Add static and media URLs in development
@@ -92,3 +72,7 @@ if settings.DEBUG:
 admin.site.site_header = _('ServicesBLADI Administration')
 admin.site.site_title = _('ServicesBLADI Admin Portal')
 admin.site.index_title = _('Welcome to ServicesBLADI Admin Portal')
+
+# Custom error handlers
+handler404 = 'servicesbladi.urls.custom_404_view'
+handler500 = 'servicesbladi.urls.custom_500_view'

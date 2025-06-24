@@ -82,11 +82,10 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            os.path.join(BASE_DIR, '../frontend/template'),
-            os.path.join(BASE_DIR, 'templates'),  # Add backend templates directory
+            os.path.join(BASE_DIR, 'templates'),  # Backend templates directory
         ],
         'APP_DIRS': True,
-        'OPTIONS': {            'context_processors': [
+        'OPTIONS': {'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
@@ -119,8 +118,7 @@ if IS_AZURE:
     for path in ca_cert_paths:
         if os.path.exists(path):
             ca_cert_path = path
-            break
-      # Configure SSL options for Azure MySQL
+            break    # Configure SSL options for Azure MySQL
     ssl_options = {}
     if os.environ.get('AZURE_MYSQL_SSL', 'true').lower() == 'true':
         # Force SSL connection for Azure MySQL
@@ -148,7 +146,7 @@ else:
             'ENGINE': 'django.db.backends.mysql',
             'NAME': 'servicesbladi',
             'USER': 'root',
-            'PASSWORD': '',
+            'PASSWORD': 'root',
             'HOST': '127.0.0.1',
             'PORT': '3306',
             'OPTIONS': {
@@ -209,15 +207,15 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, '../frontend/static'),
+    os.path.join(BASE_DIR, 'static'),  # Source static files in backend/static
 ]
 
 # Azure-specific static files configuration
 if IS_AZURE:
-    STATIC_ROOT = '/home/site/wwwroot/staticfiles'
+    STATIC_ROOT = '/home/site/wwwroot/staticfiles'  # Collected static files
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 else:
-    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles_collected')  # Collected static files
     STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
 # Media files configuration

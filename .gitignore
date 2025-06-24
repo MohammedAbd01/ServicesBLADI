@@ -186,3 +186,20 @@ deployment/
 *.zip
 test-deploy.zip
 azure-deploy.zip
+
+# Documentation and temporary files
+AI_*.md
+AZURE_*.md
+DEPLOYMENT_*.md
+GITHUB_*.md
+HANDOVER_*.md
+NEXT_*.md
+START_HERE.md
+CLEANUP_*.md
+*.txt.bak
+*.log
+analyze_*.sh
+next_steps.sh
+
+# Old workflow files
+.github/workflows/azure-deploy*.yml

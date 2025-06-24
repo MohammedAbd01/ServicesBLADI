@@ -49,12 +49,11 @@ from custom_requests.admin_bulk_actions import (
 from custom_requests.models import ServiceRequest, Message, Notification
 from accounts.models import Utilisateur
 
-urlpatterns = [
-    # Main pages
+urlpatterns = [    # Main pages
     path('', TemplateView.as_view(template_name='general/index.html'), name='home'),
     path('about/', TemplateView.as_view(template_name='general/about-us.html'), name='about'),
     path('contact/', contact_view, name='contact'),
-    path('formulaire/', TemplateView.as_view(template_name='formulaire.html'), name='formulaire'),
+    # path('formulaire/', TemplateView.as_view(template_name='formulaire.html'), name='formulaire'),  # Template not found
     
     # Authentication related pages - these are handled by accounts.urls but redirected for template compatibility
     path('login/', TemplateView.as_view(template_name='general/login.html'), name='login_page'),
