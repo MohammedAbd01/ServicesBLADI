@@ -31,6 +31,8 @@ urlpatterns = [
     path('documents/', views.documents_view, name='documents'),
     path('documents/upload/', views.upload_document_view, name='upload_document'),
     path('documents/delete/<int:document_id>/', views.delete_document_view, name='delete_document'),
+    path('documents/download/<int:document_id>/', views.download_document_view, name='download_document'),
+    path('documents/view/<int:document_id>/', views.view_document_view, name='view_document'),
     
     # Messaging views
     path('messages/', views.messages_view, name='messages'),

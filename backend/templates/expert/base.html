@@ -128,8 +128,7 @@
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
       font-weight: 500;
     }
-    
-    .sidebar-menu a i {
+      .sidebar-menu a i {
       font-size: 1.4rem;
       margin-right: 0.75rem;
       width: 28px;
@@ -139,6 +138,40 @@
     
     .sidebar-menu a.active i {
       opacity: 1;
+    }
+
+    /* Logout button styling to match other sidebar items */
+    .sidebar-menu form {
+      margin-bottom: 0.75rem;
+    }
+    
+    .sidebar-menu form button {
+      border-radius: 10px;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      font-size: 1.1rem;
+      font-weight: 400;
+      color: white !important;
+      text-decoration: none !important;
+      background: none !important;
+      border: none !important;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+    }
+    
+    .sidebar-menu form button:hover {
+      background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    .sidebar-menu form button i {
+      font-size: 1.4rem;
+      margin-right: 0.75rem;
+      width: 28px;
+      text-align: center;
+      opacity: 0.9;
     }
 
     /* Main Content Styles */
@@ -562,9 +595,9 @@
         <a href="{% url 'accounts:edit_profile' %}" class="text-white text-decoration-none {% if request.resolver_match.url_name == 'edit_profile' and request.resolver_match.app_name == 'accounts' %}active{% endif %}">
           <i class="bi bi-pencil-square"></i>
           <span>Modifier mon<br>profil</span>
-        </a>        <form method="post" action="{% url 'accounts:logout' %}" style="display: inline;">
+        </a>        <form method="post" action="{% url 'accounts:logout' %}">
           {% csrf_token %}
-          <button type="submit" class="text-white text-decoration-none bg-transparent border-0 w-100 text-start d-flex align-items-center" style="background: none;">
+          <button type="submit">
             <i class="bi bi-box-arrow-right"></i>
             <span>Déconnexion</span>
           </button>

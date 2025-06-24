@@ -7,6 +7,7 @@ from django.db.models import Q
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 import json
 import os
 import mimetypes
@@ -543,7 +544,7 @@ def cancel_appointment_view(request, appointment_id):
     logger.info(f"Statut actuel du rendez-vous: {appointment.status}")
     
     # Check if user has permission to cancel this appointment
-    if request.user.account_type.lower() == 'client':
+    if request.user.account_type.lower() == 'Client':
         # Clients can only cancel their own appointments
         if appointment.client != request.user:
             logger.error("Client non autorisé à annuler ce rendez-vous")
@@ -2090,3 +2091,92 @@ ID du message: {contact_message.id}
             print(f"Erreur de traitement du formulaire de contact: {e}")
     
     return render(request, 'general/contact.html')
+
+@login_required
+def download_document_view(request, document_id):
+    """Download a document"""
+    try:
+        document = get_object_or_404(Document, id=document_id)
+        
+        # Check permissions
+        if request.user.account_type == 'client':
+            if not (document.service_request and document.service_request.client == request.user) and \
+               not (document.rendez_vous and document.rendez_vous.client == request.user) and \
+               document.uploaded_by != request.user:
+                raise PermissionDenied("You don't have permission to access this document.")
+        elif request.user.account_type == 'expert':
+            expert = Expert.objects.get(user=request.user)
+            if not (document.service_request and document.service_request.expert == expert.user) and \
+               not (document.rendez_vous and document.rendez_vous.expert == expert.user) and \
+               document.uploaded_by != request.user:
+                raise PermissionDenied("You don't have permission to access this document.")
+        elif not request.user.is_staff:
+            raise PermissionDenied("You don't have permission to access this document.")
+        
+        # Return file response
+        from django.http import FileResponse, Http404
+        import os
+        
+        if not document.file or not os.path.exists(document.file.path):
+            raise Http404("Document file not found.")
+        
+        response = FileResponse(
+            open(document.file.path, 'rb'),
+            as_attachment=True,
+            filename=document.name
+        )
+        response['Content-Type'] = document.mime_type or 'application/octet-stream'
+        return response
+        
+    except Document.DoesNotExist:
+        raise Http404("Document not found.")
+    except Expert.DoesNotExist:
+        raise PermissionDenied("Expert profile not found.")
+
+@login_required 
+def view_document_view(request, document_id):
+    """View a document in browser"""
+    try:
+        document = get_object_or_404(Document, id=document_id)
+        
+        # Check permissions (same as download)
+        if request.user.account_type == 'client':
+            if not (document.service_request and document.service_request.client == request.user) and \
+               not (document.rendez_vous and document.rendez_vous.client == request.user) and \
+               document.uploaded_by != request.user:
+                raise PermissionDenied("You don't have permission to access this document.")
+        elif request.user.account_type == 'expert':
+            expert = Expert.objects.get(user=request.user)
+            if not (document.service_request and document.service_request.expert == expert.user) and \
+               not (document.rendez_vous and document.rendez_vous.expert == expert.user) and \
+               document.uploaded_by != request.user:
+                raise PermissionDenied("You don't have permission to access this document.")
+        elif not request.user.is_staff:
+            raise PermissionDenied("You don't have permission to access this document.")
+        
+        # Return file response for viewing
+        from django.http import FileResponse, Http404
+        import os
+        
+        if not document.file or not os.path.exists(document.file.path):
+            raise Http404("Document file not found.")
+        
+        response = FileResponse(
+            open(document.file.path, 'rb'),
+            as_attachment=False,  # View in browser
+            filename=document.name
+        )
+        response['Content-Type'] = document.mime_type or 'application/octet-stream'
+        
+        # Set content disposition for inline viewing of supported formats
+        if document.mime_type and (document.mime_type.startswith('image/') or 
+                                  document.mime_type == 'application/pdf' or
+                                  document.mime_type.startswith('text/')):
+            response['Content-Disposition'] = f'inline; filename="{document.name}"'
+        
+        return response
+        
+    except Document.DoesNotExist:
+        raise Http404("Document not found.")
+    except Expert.DoesNotExist:
+        raise PermissionDenied("Expert profile not found.")

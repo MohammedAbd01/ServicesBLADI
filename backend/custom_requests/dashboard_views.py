@@ -356,12 +356,20 @@ def admin_dashboard_view(request):
                 date_joined__month=day.month,
                 date_joined__day=day.day
             ).count()
-            daily_signups.append({'date': day.strftime('%d/%m'), 'count': count})          # Get services data for chart
+            daily_signups.append({'date': day.strftime('%d/%m'), 'count': count})        # Get services data for chart
         from services.models import Service
         service_requests = ServiceRequest.objects.values('service__title').annotate(
-            count=Count('id'),
-            name=Count('service__title')
+            count=Count('id')
         ).order_by('-count')[:5]
+        
+        # Rename the field for template compatibility
+        service_requests_data = [
+            {
+                'name': item['service__title'] or 'Unknown Service',
+                'count': item['count']
+            }
+            for item in service_requests
+        ]
         
         context = {
             'user': request.user,
@@ -373,10 +381,9 @@ def admin_dashboard_view(request):
             'total_requests': total_requests,
             'pending_requests': pending_requests,
             'completed_requests': completed_requests,
-            'total_appointments': total_appointments,
-            'recent_users': recent_users,
+            'total_appointments': total_appointments,            'recent_users': recent_users,
             'recent_requests': recent_requests,
-            'service_requests': service_requests,
+            'service_requests': service_requests_data,
             'daily_signups': daily_signups,
             'user_type_counts': {
                 'client': total_clients,

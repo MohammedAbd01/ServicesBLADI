@@ -422,9 +422,9 @@
           <li><a class="dropdown-item" href="{% url 'admin_profile' %}"><i class="bi bi-person me-2"></i>Mon Profil</a></li>
           <li><hr class="dropdown-divider"></li>
           <li>
-            <form method="post" action="{% url 'accounts:logout' %}" style="display: inline;">
+            <form method="post" action="{% url 'accounts:logout' %}">
               {% csrf_token %}
-              <button type="submit" class="dropdown-item bg-transparent border-0" style="background: none;">
+              <button type="submit" class="dropdown-item">
                 <i class="bi bi-box-arrow-right me-2"></i>Déconnexion
               </button>
             </form>
@@ -513,7 +513,7 @@
                 <div class="flex-grow-1">
                   <h6 class="mb-1">{{ request.service.title }}</h6>
                   <small class="text-muted">
-                    <i class="bi bi-person me-1"></i> {{ request.client.user.first_name }} {{ request.client.user.name }}
+                    <i class="bi bi-person me-1"></i> {{ request.client.first_name }} {{ request.client.name }}
                     <i class="bi bi-clock ms-2 me-1"></i> {{ request.created_at|date:"d/m/Y" }}
                   </small>
                 </div>

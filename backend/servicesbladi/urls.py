@@ -63,8 +63,8 @@ urlpatterns = [
     # path('expert/messages/check/', expert_check_messages, name='expert_messages_check'),
 ]
 
-# Add static and media URLs in development
-if settings.DEBUG:
+# Add static and media URLs for both development and production
+if settings.DEBUG or settings.IS_AZURE:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

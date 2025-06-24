@@ -6,11 +6,14 @@ class UserEditForm(forms.ModelForm):
     email = forms.EmailField(widget=forms.EmailInput(attrs={'class': 'form-control'}))
     name = forms.CharField(max_length=100, widget=forms.TextInput(attrs={'class': 'form-control'}))
     first_name = forms.CharField(max_length=100, widget=forms.TextInput(attrs={'class': 'form-control'}))
-    profile_picture = forms.ImageField(required=False, widget=forms.FileInput(attrs={'class': 'form-control'}))
+    phone = forms.CharField(max_length=20, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    birth_date = forms.DateField(required=False, widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}))
+    residence_country = forms.CharField(max_length=100, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
+    profile_picture = forms.ImageField(required=False, widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}))
 
     class Meta:
         model = Utilisateur
-        fields = ('name', 'first_name', 'email', 'profile_picture')
+        fields = ('name', 'first_name', 'email', 'phone', 'birth_date', 'residence_country', 'profile_picture')
 
 class CustomPasswordChangeForm(PasswordChangeForm):
     old_password = forms.CharField(
